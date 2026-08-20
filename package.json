@@ -3,6 +3,9 @@
   "version": "0.2.0",
   "description": "Terminal-native workspace theme and presentation UI extension for Pi Coding Agent, inspired by xAI Grok Build.",
   "type": "module",
+  "scripts": {
+    "test": "node --test test/test.js"
+  },
   "main": "./extension/index.ts",
   "exports": {
     ".": "./extension/index.ts"

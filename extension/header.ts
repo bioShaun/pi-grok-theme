@@ -65,7 +65,7 @@ export function renderHeader(
   const borderChar = "─";
   const titleFormatted = `${ANSI_COLORS.bold}${ANSI_COLORS.blue}${brandTitle}${ANSI_COLORS.reset}`;
   const titleWidth = visibleWidth(brandTitle);
-  const topBorderRightLength = Math.max(0, width - 2 - titleWidth - 2);
+  const topBorderRightLength = Math.max(0, width - 3 - titleWidth);
 
   const topBorder = `${ANSI_COLORS.dim}╭─${ANSI_COLORS.reset}${titleFormatted}${ANSI_COLORS.dim}${borderChar.repeat(topBorderRightLength)}╮${ANSI_COLORS.reset}`;
   const bottomBorder = `${ANSI_COLORS.dim}╰${borderChar.repeat(width - 2)}╯${ANSI_COLORS.reset}`;
@@ -86,12 +86,24 @@ export function renderHeader(
 export function installHeader(
   ctx: ExtensionContext,
   options: HeaderOptions = DEFAULT_HEADER_OPTIONS,
-): void {
-  // Check if ctx.ui has custom setHeader API
-  const ui = ctx.ui as unknown as { setHeader?: (renderer: (width: number) => string[]) => void };
-  if (ctx.hasUI && typeof ui.setHeader === "function") {
+): { dispose: () => void } | undefined {
+  if (ctx.hasUI && typeof ctx.ui?.setHeader === "function") {
     try {
-      ui.setHeader((width: number) => renderHeader(ctx, width, options));
+      ctx.ui.setHeader((_tui, _theme) => {
+        return {
+          render: (width: number) => renderHeader(ctx, width, options),
+          invalidate: () => {},
+        };
+      });
+      return {
+        dispose: () => {
+          try {
+            ctx.ui?.setHeader(undefined);
+          } catch {
+            // Graceful fallback
+          }
+        },
+      };
     } catch {
       // Graceful degradation
     }

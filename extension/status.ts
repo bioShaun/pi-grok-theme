@@ -21,9 +21,9 @@ export interface StatusBadge {
 export const ANSI_COLORS = {
   reset: "\x1b[0m",
   bold: "\x1b[1m",
-  dim: "\x1b[38;2;65;65;65m", // #414141
-  muted: "\x1b[38;2;108;108;108m", // #6C6C6C
-  fg: "\x1b[38;2;225;225;225m", // #E1E1E1
+  dim: "\x1b[38;2;104;110;120m", // #686E78 (readable dim/separator)
+  muted: "\x1b[38;2;136;144;159m", // #88909F (readable comments/secondary text)
+  fg: "\x1b[38;2;225;225;225m", // #E1E1E1 (primary text)
   fgSecondary: "\x1b[38;2;200;200;200m", // #C8C8C8
   blue: "\x1b[38;2;122;162;247m", // #7AA2F7 (TokyoNight Blue)
   cyan: "\x1b[38;2;125;207;255m", // #7DCFFF (TokyoNight Cyan)

@@ -17,6 +17,8 @@ import { WorkingStateController, ANSI_COLORS } from "./status.ts";
 export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
   const statusController = new WorkingStateController();
   let footerHandle: { dispose: () => void; requestRender: () => void } | null = null;
+  let headerHandle: { dispose: () => void } | undefined;
+  let showHeader = false;
   const config: FooterConfig = { ...DEFAULT_FOOTER_CONFIG };
 
   // Track original setWorkingMessage to intercept gracefully
@@ -33,8 +35,13 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
       footerHandle?.dispose();
       footerHandle = installFooter(ctx, statusController, config);
 
-      // Install Header if supported
-      installHeader(ctx);
+      // Header is opt-in to match Grok Build's clean fullscreen canvas
+      headerHandle?.dispose();
+      if (showHeader) {
+        headerHandle = installHeader(ctx);
+      } else {
+        headerHandle = undefined;
+      }
 
       // Intercept setWorkingMessage for concise Grok status tokens
       if (typeof ctx.ui?.setWorkingMessage === "function" && !originalSetWorkingMessage) {
@@ -68,6 +75,8 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
       statusController.endTurn();
       footerHandle?.dispose();
       footerHandle = null;
+      headerHandle?.dispose();
+      headerHandle = undefined;
     } catch (err) {
       console.error("[pi-grok-build] session_shutdown error:", err);
     }
@@ -129,7 +138,7 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
 
   // Register interactive slash command
   pi.registerCommand("grok", {
-    description: "Inspect or configure pi-grok-build theme and UI extension (/grok [info|status|toggle])",
+    description: "Inspect or configure pi-grok-build theme and UI extension (/grok [info|status|toggle|header])",
     handler: (args, ctx) => {
       const sub = (args || "").trim().toLowerCase();
 
@@ -149,6 +158,23 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
         return;
       }
 
+      if (sub === "header") {
+        showHeader = !showHeader;
+        headerHandle?.dispose();
+        if (showHeader) {
+          headerHandle = installHeader(ctx);
+        } else {
+          headerHandle = undefined;
+        }
+        if (ctx.hasUI && typeof ctx.ui?.notify === "function") {
+          ctx.ui.notify(
+            `pi-grok-build header: ${showHeader ? "enabled" : "disabled"}`,
+            "info",
+          );
+        }
+        return;
+      }
+
       if (sub === "toggle" || sub === "compact") {
         config.compactThreshold = config.compactThreshold === 80 ? 9999 : 80;
         footerHandle?.requestRender();
@@ -162,7 +188,7 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
       }
 
       if (ctx.hasUI && typeof ctx.ui?.notify === "function") {
-        ctx.ui.notify(`Unknown subcommand "${sub}". Usage: /grok [info|status|toggle]`, "warning");
+        ctx.ui.notify(`Unknown subcommand "${sub}". Usage: /grok [info|status|toggle|header]`, "warning");
       }
     },
   });

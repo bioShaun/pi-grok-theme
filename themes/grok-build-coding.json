@@ -9,11 +9,11 @@
 
     "fg": "#E1E1E1",
     "fgSecondary": "#C8C8C8",
-    "muted": "#6C6C6C",
-    "dim": "#414141",
+    "muted": "#88909F",
+    "dim": "#686E78",
 
-    "border": "#2E3035",
-    "borderMuted": "#202226",
+    "border": "#3E424A",
+    "borderMuted": "#2B2E35",
 
     "blue": "#7AA2F7",
     "cyan": "#7DCFFF",
@@ -34,10 +34,10 @@
     "error": "red",
     "warning": "amber",
 
-    "muted": "fgSecondary",
+    "muted": "muted",
     "dim": "dim",
     "text": "",
-    "thinkingText": "muted",
+    "thinkingText": "purple",
 
     "selectedBg": "surface3",
     "scrollbarThumb": "border",
@@ -61,7 +61,7 @@
 
     "mdHeading": "fg",
     "mdLink": "blue",
-    "mdLinkUrl": "muted",
+    "mdLinkUrl": "cyan",
     "mdCode": "cyan",
     "mdCodeBlock": "fg",
     "mdCodeBlockBorder": "borderMuted",
@@ -84,12 +84,12 @@
     "syntaxOperator": "fgSecondary",
     "syntaxPunctuation": "fgSecondary",
 
-    "thinkingOff": "dim",
-    "thinkingMinimal": "muted",
-    "thinkingLow": "fgSecondary",
-    "thinkingMedium": "blue",
-    "thinkingHigh": "cyan",
-    "thinkingXhigh": "purple",
+    "thinkingOff": "borderMuted",
+    "thinkingMinimal": "borderMuted",
+    "thinkingLow": "border",
+    "thinkingMedium": "border",
+    "thinkingHigh": "border",
+    "thinkingXhigh": "dim",
     "thinkingMax": "amber",
 
     "bashMode": "amber"

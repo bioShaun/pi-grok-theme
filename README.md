@@ -181,6 +181,7 @@ When terminal width narrows, items recede in strict priority order:
 ### Extension Commands
 - `/grok` or `/grok info`: Inspect current workspace, model, and theme status.
 - `/grok toggle`: Toggle between auto-responsive and always-compact footer modes.
+- `/grok header`: Toggle the workspace header banner on or off (opt-in, disabled by default).
 
 ---
 

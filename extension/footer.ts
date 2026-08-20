@@ -44,7 +44,7 @@ export function visibleWidth(str: string): number {
   let width = 0;
   for (const char of clean) {
     const code = char.codePointAt(0) || 0;
-    // East Asian wide characters count as 2 cells
+    // East Asian wide characters and emojis count as 2 cells
     if (
       (code >= 0x1100 && code <= 0x115f) ||
       (code >= 0x2e80 && code <= 0xa4cf && code !== 0x303f) ||
@@ -54,6 +54,7 @@ export function visibleWidth(str: string): number {
       (code >= 0xfe30 && code <= 0xfe6f) ||
       (code >= 0xff00 && code <= 0xff60) ||
       (code >= 0xffe0 && code <= 0xffe6) ||
+      (code >= 0x1f000 && code <= 0x1ffff) ||
       (code >= 0x20000 && code <= 0x2fffd) ||
       (code >= 0x30000 && code <= 0x3fffd)
     ) {
@@ -76,15 +77,17 @@ export function truncateToWidth(str: string, maxWidth: number, ellipsis = "…")
   let currentWidth = 0;
   let result = "";
 
-  for (const char of str) {
-    // Preserve ANSI sequences without width cost
-    if (char === "\x1b") {
-      result += char;
+  const tokenRegex = /\x1b\[[0-9;]*[a-zA-Z]|\x1b\].*?\x07|[^\x1b]/gu;
+  const matches = str.match(tokenRegex) || [];
+
+  for (const token of matches) {
+    if (token.startsWith("\x1b")) {
+      result += token;
       continue;
     }
-    const charWidth = visibleWidth(char);
+    const charWidth = visibleWidth(token);
     if (currentWidth + charWidth > targetWidth) break;
-    result += char;
+    result += token;
     currentWidth += charWidth;
   }
 
