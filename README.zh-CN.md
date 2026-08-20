@@ -71,13 +71,13 @@ TokyoNight 语义点缀 (#7AA2F7 蓝, #7DCFFF 青, #E0AF68 琥珀金, #9ECE6A �
 在终端中直接运行：
 
 ```bash
-pi install https://github.com/earendil-works/pi-grok-theme
+pi install https://github.com/bioShaun/pi-grok-theme
 ```
 
 如果是本地克隆或开发模式：
 
 ```bash
-git clone https://github.com/earendil-works/pi-grok-theme.git
+git clone https://github.com/bioShaun/pi-grok-theme.git
 cd pi-grok-theme
 pi install . -l
 ```
@@ -89,7 +89,7 @@ pi install . -l
 {
   "theme": "grok-build-coding",
   "packages": [
-    "https://github.com/earendil-works/pi-grok-theme"
+    "https://github.com/bioShaun/pi-grok-theme"
   ]
 }
 ```
@@ -99,7 +99,7 @@ pi install . -l
 ### 方式 2：使用一键安装脚本
 
 ```bash
-git clone https://github.com/earendil-works/pi-grok-theme.git
+git clone https://github.com/bioShaun/pi-grok-theme.git
 cd pi-grok-theme
 ./scripts/install.sh
 ```

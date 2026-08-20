@@ -71,13 +71,13 @@ TokyoNight Accents (#7AA2F7 Blue, #7DCFFF Cyan, #E0AF68 Amber Gold, #9ECE6A Gree
 Run directly inside your terminal:
 
 ```bash
-pi install https://github.com/earendil-works/pi-grok-theme
+pi install https://github.com/bioShaun/pi-grok-theme
 ```
 
 Or for local development / clone:
 
 ```bash
-git clone https://github.com/earendil-works/pi-grok-theme.git
+git clone https://github.com/bioShaun/pi-grok-theme.git
 cd pi-grok-theme
 pi install . -l
 ```
@@ -89,7 +89,7 @@ You can also add it to your Pi settings packages list:
 {
   "theme": "grok-build-coding",
   "packages": [
-    "https://github.com/earendil-works/pi-grok-theme"
+    "https://github.com/bioShaun/pi-grok-theme"
   ]
 }
 ```
@@ -99,7 +99,7 @@ You can also add it to your Pi settings packages list:
 ### Method 2: Using the One-Click Install Script
 
 ```bash
-git clone https://github.com/earendil-works/pi-grok-theme.git
+git clone https://github.com/bioShaun/pi-grok-theme.git
 cd pi-grok-theme
 ./scripts/install.sh
 ```

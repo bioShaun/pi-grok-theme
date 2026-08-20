@@ -8,6 +8,10 @@
     ".": "./extension/index.ts"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bioShaun/pi-grok-theme.git"
+  },
   "keywords": [
     "pi-package",
     "pi-extension",
