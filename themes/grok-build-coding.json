@@ -1,0 +1,102 @@
+{
+  "$schema": "https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/src/modes/interactive/theme/theme-schema.json",
+  "name": "grok-build-coding",
+  "vars": {
+    "terminalBg": "#0A0A0A",
+    "surface1": "#141414",
+    "surface2": "#1A1A1A",
+    "surface3": "#242424",
+
+    "fg": "#E1E1E1",
+    "fgSecondary": "#C8C8C8",
+    "muted": "#6C6C6C",
+    "dim": "#414141",
+
+    "border": "#2E3035",
+    "borderMuted": "#202226",
+
+    "blue": "#7AA2F7",
+    "cyan": "#7DCFFF",
+    "amber": "#E0AF68",
+    "purple": "#BB9AF7",
+    "green": "#9ECE6A",
+    "red": "#F7768E",
+    "orange": "#FF9E64"
+  },
+  "colors": {
+    "accent": "blue",
+
+    "border": "border",
+    "borderAccent": "blue",
+    "borderMuted": "borderMuted",
+
+    "success": "green",
+    "error": "red",
+    "warning": "amber",
+
+    "muted": "fgSecondary",
+    "dim": "dim",
+    "text": "",
+    "thinkingText": "muted",
+
+    "selectedBg": "surface3",
+    "scrollbarThumb": "border",
+
+    "searchMatchBg": "surface3",
+    "searchMatchText": "fg",
+
+    "userMessageBg": "surface2",
+    "userMessageText": "fg",
+
+    "customMessageBg": "surface1",
+    "customMessageText": "fg",
+    "customMessageLabel": "amber",
+
+    "toolPendingBg": "surface1",
+    "toolSuccessBg": "surface1",
+    "toolErrorBg": "surface1",
+
+    "toolTitle": "blue",
+    "toolOutput": "fgSecondary",
+
+    "mdHeading": "fg",
+    "mdLink": "blue",
+    "mdLinkUrl": "muted",
+    "mdCode": "cyan",
+    "mdCodeBlock": "fg",
+    "mdCodeBlockBorder": "borderMuted",
+    "mdQuote": "fgSecondary",
+    "mdQuoteBorder": "border",
+    "mdHr": "borderMuted",
+    "mdListBullet": "cyan",
+
+    "toolDiffAdded": "green",
+    "toolDiffRemoved": "red",
+    "toolDiffContext": "fgSecondary",
+
+    "syntaxComment": "muted",
+    "syntaxKeyword": "purple",
+    "syntaxFunction": "blue",
+    "syntaxVariable": "fg",
+    "syntaxString": "green",
+    "syntaxNumber": "orange",
+    "syntaxType": "cyan",
+    "syntaxOperator": "fgSecondary",
+    "syntaxPunctuation": "fgSecondary",
+
+    "thinkingOff": "dim",
+    "thinkingMinimal": "muted",
+    "thinkingLow": "fgSecondary",
+    "thinkingMedium": "blue",
+    "thinkingHigh": "cyan",
+    "thinkingXhigh": "purple",
+    "thinkingMax": "amber",
+
+    "bashMode": "amber"
+  },
+  "export": {
+    "pageBg": "#0A0A0A",
+    "cardBg": "#141414",
+    "infoBg": "#1A1A1A"
+  }
+}

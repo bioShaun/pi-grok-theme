@@ -1,0 +1,32 @@
+{
+  "name": "pi-grok-build",
+  "version": "0.2.0",
+  "description": "Grok Build terminal workspace theme and presentation UI extension for Pi Coding Agent.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "pi-theme",
+    "grok-build",
+    "grok-night",
+    "statusline",
+    "tui"
+  ],
+  "files": [
+    "index.ts",
+    "footer.ts",
+    "header.ts",
+    "status.ts"
+  ],
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": ">=0.80.0",
+    "@earendil-works/pi-coding-agent": ">=0.80.0",
+    "@earendil-works/pi-tui": ">=0.80.0"
+  }
+}

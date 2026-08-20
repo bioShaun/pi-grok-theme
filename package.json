@@ -1,0 +1,43 @@
+{
+  "name": "pi-grok-theme",
+  "version": "0.2.0",
+  "description": "Terminal-native workspace theme and presentation UI extension for Pi Coding Agent, inspired by xAI Grok Build.",
+  "type": "module",
+  "main": "./extension/index.ts",
+  "exports": {
+    ".": "./extension/index.ts"
+  },
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "pi-theme",
+    "grok-build",
+    "grok-night",
+    "statusline",
+    "tui",
+    "theme"
+  ],
+  "files": [
+    "extension",
+    "themes",
+    "guidelines.md",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ],
+  "pi": {
+    "extensions": [
+      "./extension/index.ts"
+    ],
+    "themes": [
+      "./themes/grok-build-coding.json",
+      "./themes/grok-build.json"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": ">=0.80.0",
+    "@earendil-works/pi-coding-agent": ">=0.80.0",
+    "@earendil-works/pi-tui": ">=0.80.0"
+  }
+}
