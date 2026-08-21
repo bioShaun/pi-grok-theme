@@ -6,3 +6,8 @@ yarn-error.log*
 *.tsbuildinfo
 .vscode/
 .idea/
+
+# local agent tooling (skills installed by agents, not part of the theme)
+.agents/
+.claude/
+skills-lock.json

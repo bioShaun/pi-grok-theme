@@ -1,11 +1,11 @@
 # Pi Grok Build Theme & Extension — Implementation & Optimization Spec
 
 **Project name:** `pi-grok-build`  
-**Status:** Complete / v0.2.0 Fully Implemented  
-**Version:** `0.2.0`  
+**Status:** Complete / v0.3.0 Fully Implemented  
+**Version:** `0.3.0`  
 **Target:** Pi Coding Agent  
 **Primary platform:** truecolor terminal (Ghostty, WezTerm, iTerm2, Kitty, VS Code)  
-**Scope:** Phase 1 (GrokNight Native Theme) → Phase 2 (UI Extension) → Phase 3 (Workflow & Output Guidelines)
+**Scope:** Phase 1 (GrokNight & GrokDay Native Themes) → Phase 2 (UI Extension & OSC 12 Cursor Sync) → Phase 3 (Workflow & Output Guidelines)
 
 ---
 
@@ -63,10 +63,12 @@ pi-grok-build
 │
 ├── Phase 1: Native Themes (Theme Layer)
 │   ├── grok-build-coding.json  (GrokNight palette + rich syntax for daily coding)
-│   └── grok-build.json         (Pure minimalist GrokNight palette)
+│   ├── grok-build.json         (Pure minimalist GrokNight palette)
+│   └── grok-build-day.json     (GrokDay high-contrast light theme)
 │
 ├── Phase 2: Presentation Extension (UI Layer)
 │   ├── index.ts                (Extension entry point & lifecycle)
+│   ├── cursor.ts               (OSC 12 terminal cursor color synchronization)
 │   ├── header.ts               (Grok-style workspace header)
 │   ├── footer.ts               (Compact single-line metadata footer)
 │   └── status.ts               (Working indicator & status badges)
@@ -182,7 +184,7 @@ Optimized for daily software development with clear syntax differentiation and h
     "toolTitle": "blue",
     "toolOutput": "fgSecondary",
 
-    "mdHeading": "fg",
+    "mdHeading": "cyan",
     "mdLink": "blue",
     "mdLinkUrl": "muted",
     "mdCode": "cyan",
@@ -296,7 +298,7 @@ Designed for users seeking the strictest Grok-like monochrome simplicity:
     "toolTitle": "blue",
     "toolOutput": "fgSecondary",
 
-    "mdHeading": "fg",
+    "mdHeading": "cyan",
     "mdLink": "blue",
     "mdLinkUrl": "muted",
     "mdCode": "cyan",
@@ -341,6 +343,107 @@ Designed for users seeking the strictest Grok-like monochrome simplicity:
 
 ---
 
+## 4.4 `grok-build-day.json` (GrokDay Light Variant)
+
+Designed for daylight or bright environment coding sessions, based on official Grok Build `grokday.rs`:
+
+- **Base Canvas:** Clean neutral gray `#EEEEEE` with layered surfaces (`#E4E4E4` / `#DADADA` / `#D0D0D0`).
+- **Text & Contrast:** Crisp dark text `#1A1A1A` with darkened TokyoNight accents for WCAG AA compliance.
+- **Accents:** Dark Blue `#2E5CB8`, Deep Cyan `#0E7490`, Warm Amber `#B45309`, Purple `#7C3AED`, Olive Green `#4D7C0F`.
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/src/modes/interactive/theme/theme-schema.json",
+  "name": "grok-build-day",
+  "vars": {
+    "terminalBg": "#EEEEEE",
+    "surface1": "#E4E4E4",
+    "surface2": "#DADADA",
+    "surface3": "#D0D0D0",
+
+    "fg": "#1A1A1A",
+    "fgSecondary": "#3A3A3A",
+    "muted": "#6C6C6C",
+    "dim": "#9C9C9C",
+
+    "border": "#C0C0C0",
+    "borderMuted": "#D4D4D4",
+
+    "blue": "#2E5CB8",
+    "cyan": "#0E7490",
+    "amber": "#B45309",
+    "purple": "#7C3AED",
+    "green": "#4D7C0F",
+    "red": "#DC2626",
+    "orange": "#C2410C"
+  },
+  "colors": {
+    "accent": "blue",
+    "border": "border",
+    "borderAccent": "blue",
+    "borderMuted": "borderMuted",
+    "success": "green",
+    "error": "red",
+    "warning": "amber",
+    "muted": "muted",
+    "dim": "dim",
+    "text": "",
+    "thinkingText": "muted",
+    "selectedBg": "surface3",
+    "scrollbarThumb": "border",
+    "searchMatchBg": "surface3",
+    "searchMatchText": "fg",
+    "userMessageBg": "surface2",
+    "userMessageText": "fg",
+    "customMessageBg": "surface1",
+    "customMessageText": "fg",
+    "customMessageLabel": "amber",
+    "toolPendingBg": "surface1",
+    "toolSuccessBg": "surface1",
+    "toolErrorBg": "surface1",
+    "toolTitle": "blue",
+    "toolOutput": "fgSecondary",
+    "mdHeading": "cyan",
+    "mdLink": "blue",
+    "mdLinkUrl": "cyan",
+    "mdCode": "cyan",
+    "mdCodeBlock": "fg",
+    "mdCodeBlockBorder": "borderMuted",
+    "mdQuote": "fgSecondary",
+    "mdQuoteBorder": "border",
+    "mdHr": "borderMuted",
+    "mdListBullet": "cyan",
+    "toolDiffAdded": "green",
+    "toolDiffRemoved": "red",
+    "toolDiffContext": "fgSecondary",
+    "syntaxComment": "muted",
+    "syntaxKeyword": "purple",
+    "syntaxFunction": "blue",
+    "syntaxVariable": "fg",
+    "syntaxString": "green",
+    "syntaxNumber": "orange",
+    "syntaxType": "cyan",
+    "syntaxOperator": "fgSecondary",
+    "syntaxPunctuation": "fgSecondary",
+    "thinkingOff": "borderMuted",
+    "thinkingMinimal": "border",
+    "thinkingLow": "dim",
+    "thinkingMedium": "muted",
+    "thinkingHigh": "fgSecondary",
+    "thinkingXhigh": "blue",
+    "thinkingMax": "amber",
+    "bashMode": "amber"
+  },
+  "export": {
+    "pageBg": "#EEEEEE",
+    "cardBg": "#E4E4E4",
+    "infoBg": "#DADADA"
+  }
+}
+```
+
+---
+
 # 5. Phase 2 — `pi-grok-build` UI Extension
 
 The Extension layer transforms Pi from a standard conversational CLI into an elegant Grok Build workspace.
@@ -349,9 +452,10 @@ The Extension layer transforms Pi from a standard conversational CLI into an ele
 
 ```text
 extension/
-├── index.ts        # Entrypoint registering UI lifecycle handlers
+├── index.ts        # Entrypoint registering UI lifecycle handlers & /grok commands
+├── cursor.ts       # OSC 12 cursor color synchronization (\x1b]12;rgb:RR/GG/BB\x07)
 ├── footer.ts       # Single-line Grok-style footer renderer
-├── header.ts       # Clean workspace header
+├── header.ts       # Clean workspace header banner
 ├── status.ts       # Compact status badges & working state controller
 └── package.json    # Extension manifest
 ```
@@ -396,6 +500,24 @@ main · sonnet-3.7 · 24% · ● working
 
 ---
 
+## 5.4 OSC 12 Terminal Cursor Color Synchronization
+
+Grok Build's signature visual includes the warm amber cursor. Rather than relying on JSON theme files, `cursor.ts` synchronizes the terminal cursor color dynamically:
+- **On `session_start`:** Emits `\x1b]12;rgb:E0/AF/68\x07` (TokyoNight Amber Gold `#E0AF68`).
+- **On `session_shutdown`:** Emits `\x1b]112\x07` to restore the user's default terminal cursor color cleanly.
+- **Compatible with:** Ghostty, WezTerm, iTerm2, Kitty, foot, xterm, and VS Code terminal.
+
+---
+
+## 5.5 Interactive Slash Command `/grok`
+
+- `/grok` / `/grok info` / `/grok status`: Inspect runtime environment, model, and active theme.
+- `/grok theme` / `/grok theme [coding|dark|day]`: View available Grok themes and guided activation instructions.
+- `/grok header`: Toggle optional workspace header banner.
+- `/grok toggle`: Toggle between auto-responsive and always-compact footer layouts.
+
+---
+
 # 6. Phase 3 — Workflow & Output Interaction Guidelines
 
 To match the precision and density of Grok Build in agent responses:
@@ -414,23 +536,24 @@ To match the precision and density of Grok Build in agent responses:
 
 # 7. Validation & Acceptance Criteria
 
-### AC-01: GrokNight Palette Compliance
-- Canvas relies on `#0A0A0A` / `#141414` / `#242424` neutral dark values.
-- Primary text is `#E1E1E1`, secondary text `#C8C8C8`, comments `#6C6C6C`.
+### AC-01: GrokNight & GrokDay Palette Compliance
+- Canvas relies on `#0A0A0A` / `#141414` / `#242424` (GrokNight) and `#EEEEEE` / `#E4E4E4` (GrokDay).
+- Primary text is `#E1E1E1` (dark) / `#1A1A1A` (light), secondary text `#C8C8C8` / `#3A3A3A`.
 - TokyoNight accents (`#7AA2F7`, `#7DCFFF`, `#E0AF68`, `#9ECE6A`, `#BB9AF7`, `#F7768E`) used with strict semantic discipline.
 
 ### AC-02: Instant Diff Readability
-- Added lines (`#9ECE6A`) and removed lines (`#F7768E`) distinguish additions/deletions within 1 second.
-- Context lines remain `#C8C8C8` on `#141414`.
+- Added lines (`#9ECE6A` / `#4D7C0F`) and removed lines (`#F7768E` / `#DC2626`) distinguish additions/deletions within 1 second.
+- Context lines remain legible on surface layers.
 
 ### AC-03: Subdued Thinking Hierarchy
-- Thinking body text uses `#6C6C6C`, visibly receding behind final assistant output.
+- Thinking body text uses `muted` (`#6C6C6C` / `#88909F`), visibly receding behind final assistant output.
 
 ### AC-04: Schema Integrity
-- 100% of Pi's 51 required theme tokens + 4 optional tokens defined explicitly without schema validation errors.
+- 100% of Pi's 51 required theme tokens + 4 optional tokens defined explicitly across all 3 themes without schema validation errors.
 
-### AC-05: Extension Resilience
-- If Phase 2 Extension encounters runtime issues, Pi continues working seamlessly with fallback UI.
+### AC-05: Extension Resilience & Clean Teardown
+- Extension handles all lifecycle events safely with try/catch boundaries.
+- Session shutdown restores terminal default cursor color via OSC 112.
 
 ---
 
@@ -440,8 +563,15 @@ To match the precision and density of Grok Build in agent responses:
 [v0.1.0] Phase 1 MVP (Complete)
   └── Initial theme drafts, install/uninstall scripts, validation.
 
-[v0.2.0] All 3 Phases Complete (Current)
+[v0.2.0] All 3 Phases Complete (Complete)
   ├── Phase 1: Rebuilt grok-build-coding.json and grok-build.json with official GrokNight palette.
   ├── Phase 2: Built full UI presentation extension (index.ts, footer.ts, header.ts, status.ts, package.json).
   └── Phase 3: Created guidelines.md (Plan → Search → Build → Verify interaction standard).
+
+[v0.3.0] Enhanced Grok Build Alignment (Current)
+  ├── P1: OSC 12 cursor color synchronization via cursor.ts (Amber Gold #E0AF68 / clean restore on exit).
+  ├── P2: GrokDay high-contrast light theme (themes/grok-build-day.json based on grokday.rs).
+  ├── P3: Markdown heading cyan hierarchy enhancement (h1=cyan across all 3 themes).
+  ├── P4: Interactive /grok theme switcher & guides in extension/index.ts.
+  └── P5: Synchronized package manifests, install/uninstall scripts, tests, and documentation.
 ```

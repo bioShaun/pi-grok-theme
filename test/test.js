@@ -2,19 +2,41 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import registerGrokBuildExtension from "../extension/index.ts";
-import { renderHeader } from "../extension/header.ts";
-import { renderGrokFooter, visibleWidth, truncateToWidth } from "../extension/footer.ts";
-import { WorkingStateController } from "../extension/status.ts";
+import registerGrokBuildExtension from "../index.ts";
+import { renderHeader } from "../header.ts";
+import { renderGrokFooter, visibleWidth, truncateToWidth } from "../footer.ts";
+import { WorkingStateController } from "../status.ts";
+import { hexToOsc12, setCursorColor, resetCursorColor } from "../cursor.ts";
 
-test("Theme JSON validation", () => {
+test("Theme JSON validation - all 3 themes", () => {
   const codingTheme = JSON.parse(fs.readFileSync(path.resolve("themes/grok-build-coding.json"), "utf8"));
   const minimalTheme = JSON.parse(fs.readFileSync(path.resolve("themes/grok-build.json"), "utf8"));
+  const dayTheme = JSON.parse(fs.readFileSync(path.resolve("themes/grok-build-day.json"), "utf8"));
 
   assert.equal(codingTheme.name, "grok-build-coding");
   assert.equal(minimalTheme.name, "grok-build");
+  assert.equal(dayTheme.name, "grok-build-day");
+
   assert.ok(codingTheme.colors.accent);
   assert.ok(minimalTheme.colors.accent);
+  assert.ok(dayTheme.colors.accent);
+
+  // Validate Markdown heading is cyan across themes
+  assert.equal(codingTheme.colors.mdHeading, "cyan");
+  assert.equal(minimalTheme.colors.mdHeading, "cyan");
+  assert.equal(dayTheme.colors.mdHeading, "cyan");
+});
+
+test("cursor.ts OSC 12 helpers", () => {
+  assert.equal(hexToOsc12("#E0AF68"), "E0/AF/68");
+  assert.equal(hexToOsc12("E0AF68"), "E0/AF/68");
+  assert.equal(hexToOsc12("#7AA2F7"), "7A/A2/F7");
+  assert.equal(hexToOsc12("invalid"), "E0/AF/68");
+
+  // Verify function calls do not throw
+  assert.doesNotThrow(() => setCursorColor());
+  assert.doesNotThrow(() => setCursorColor("7A/A2/F7"));
+  assert.doesNotThrow(() => resetCursorColor());
 });
 
 test("visibleWidth & truncateToWidth calculation", () => {
@@ -45,7 +67,7 @@ test("WorkingStateController lifecycle", () => {
   assert.equal(ctrl.getState(), "idle");
 });
 
-test("Header & Footer Component render interface", () => {
+test("Header & Footer Component render interface and /grok commands", () => {
   let headerFactory = null;
   let footerFactory = null;
   let registeredCommands = {};
@@ -112,4 +134,22 @@ test("Header & Footer Component render interface", () => {
 
   // Command verification
   assert.ok(registeredCommands.grok, "/grok command must be registered");
+
+  // /grok info / status shows v0.3.0 and cursor color
+  notifications = [];
+  registeredCommands.grok.handler("info", fakeCtx);
+  assert.ok(notifications.some((n) => n.msg.includes("v0.3.0") && n.msg.includes("Amber Gold")));
+
+  // /grok theme lists available themes
+  notifications = [];
+  registeredCommands.grok.handler("theme", fakeCtx);
+  assert.ok(notifications.some((n) => n.msg.includes("grok-build-coding") && n.msg.includes("grok-build-day")));
+
+  // /grok theme day gives activation guide for grok-build-day
+  notifications = [];
+  registeredCommands.grok.handler("theme day", fakeCtx);
+  assert.ok(notifications.some((n) => n.msg.includes("To activate grok-build-day")));
+
+  // session_shutdown cleans up
+  assert.doesNotThrow(() => listeners.session_shutdown({}, fakeCtx));
 });

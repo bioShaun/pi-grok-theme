@@ -12,6 +12,10 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import {
+  visibleWidth as tuiVisibleWidth,
+  truncateToWidth as tuiTruncateToWidth,
+} from "@earendil-works/pi-tui";
 import { ANSI_COLORS, formatDuration, type WorkingStateController } from "./status.ts";
 
 export interface FooterConfig {
@@ -36,62 +40,22 @@ export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
   compactThreshold: 80,
 };
 
-/** Calculate visible terminal width of a string excluding ANSI escape sequences */
+/**
+ * Calculate visible terminal width of a string excluding ANSI escape sequences.
+ *
+ * Delegates to pi-tui: the TUI validates every rendered line with its own
+ * visibleWidth() and hard-crashes on overflow, so any divergence between our
+ * measurement and theirs is fatal. A previous local implementation counted
+ * RGI emoji such as ⚡ (U+26A1, width 2 in pi-tui) as width 1, which produced
+ * over-wide footer lines and crashed pi.
+ */
 export function visibleWidth(str: string): number {
-  if (!str) return 0;
-  // Strip standard ANSI escape sequences and OSC sequences
-  const clean = str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "").replace(/\x1b\].*?\x07/g, "");
-  let width = 0;
-  for (const char of clean) {
-    const code = char.codePointAt(0) || 0;
-    // East Asian wide characters and emojis count as 2 cells
-    if (
-      (code >= 0x1100 && code <= 0x115f) ||
-      (code >= 0x2e80 && code <= 0xa4cf && code !== 0x303f) ||
-      (code >= 0xac00 && code <= 0xd7a3) ||
-      (code >= 0xf900 && code <= 0xfaff) ||
-      (code >= 0xfe10 && code <= 0xfe19) ||
-      (code >= 0xfe30 && code <= 0xfe6f) ||
-      (code >= 0xff00 && code <= 0xff60) ||
-      (code >= 0xffe0 && code <= 0xffe6) ||
-      (code >= 0x1f000 && code <= 0x1ffff) ||
-      (code >= 0x20000 && code <= 0x2fffd) ||
-      (code >= 0x30000 && code <= 0x3fffd)
-    ) {
-      width += 2;
-    } else {
-      width += 1;
-    }
-  }
-  return width;
+  return tuiVisibleWidth(str ?? "");
 }
 
-/** Truncate text to a maximum visible width, appending ellipsis if needed */
+/** Truncate text to a maximum visible width, appending ellipsis if needed. */
 export function truncateToWidth(str: string, maxWidth: number, ellipsis = "…"): string {
-  if (maxWidth <= 0) return "";
-  if (visibleWidth(str) <= maxWidth) return str;
-
-  const ellWidth = visibleWidth(ellipsis);
-  const targetWidth = Math.max(0, maxWidth - ellWidth);
-
-  let currentWidth = 0;
-  let result = "";
-
-  const tokenRegex = /\x1b\[[0-9;]*[a-zA-Z]|\x1b\].*?\x07|[^\x1b]/gu;
-  const matches = str.match(tokenRegex) || [];
-
-  for (const token of matches) {
-    if (token.startsWith("\x1b")) {
-      result += token;
-      continue;
-    }
-    const charWidth = visibleWidth(token);
-    if (currentWidth + charWidth > targetWidth) break;
-    result += token;
-    currentWidth += charWidth;
-  }
-
-  return result + ellipsis + ANSI_COLORS.reset;
+  return tuiTruncateToWidth(str, maxWidth, ellipsis);
 }
 
 /** Format token counts into human-readable strings (e.g., 48k, 1.2M) */

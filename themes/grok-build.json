@@ -58,7 +58,7 @@
     "toolTitle": "blue",
     "toolOutput": "fgSecondary",
 
-    "mdHeading": "fg",
+    "mdHeading": "cyan",
     "mdLink": "blue",
     "mdLinkUrl": "cyan",
     "mdCode": "cyan",

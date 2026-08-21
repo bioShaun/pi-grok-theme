@@ -13,6 +13,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { installFooter, type FooterConfig, DEFAULT_FOOTER_CONFIG } from "./footer.ts";
 import { installHeader } from "./header.ts";
 import { WorkingStateController, ANSI_COLORS } from "./status.ts";
+import { setCursorColor, resetCursorColor } from "./cursor.ts";
 
 export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
   const statusController = new WorkingStateController();
@@ -64,6 +65,7 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
   pi.on("session_start", (_event, ctx) => {
     try {
       statusController.endTurn();
+      setCursorColor(); // OSC 12: set terminal cursor to Grok amber (#E0AF68)
       setupUi(ctx);
     } catch (err) {
       console.error("[pi-grok-build] session_start error:", err);
@@ -73,6 +75,7 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
   pi.on("session_shutdown", (_event, _ctx) => {
     try {
       statusController.endTurn();
+      resetCursorColor(); // OSC 112: restore terminal default cursor color
       footerHandle?.dispose();
       footerHandle = null;
       headerHandle?.dispose();
@@ -138,15 +141,16 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
 
   // Register interactive slash command
   pi.registerCommand("grok", {
-    description: "Inspect or configure pi-grok-build theme and UI extension (/grok [info|status|toggle|header])",
+    description: "Inspect or configure pi-grok-build theme and UI extension (/grok [info|status|theme|toggle|header])",
     handler: (args, ctx) => {
       const sub = (args || "").trim().toLowerCase();
 
       if (sub === "status" || sub === "info" || !sub) {
         const badge = statusController.getBadge();
         const msg = [
-          `${ANSI_COLORS.bold}${ANSI_COLORS.blue}π Grok Build v0.2.0${ANSI_COLORS.reset}`,
-          `${ANSI_COLORS.muted}Theme:${ANSI_COLORS.reset} GrokNight (TokyoNight Accents)`,
+          `${ANSI_COLORS.bold}${ANSI_COLORS.blue}π Grok Build v0.3.0${ANSI_COLORS.reset}`,
+          `${ANSI_COLORS.muted}Theme:${ANSI_COLORS.reset} GrokNight / GrokDay (TokyoNight Accents)`,
+          `${ANSI_COLORS.muted}Cursor:${ANSI_COLORS.reset} Amber Gold (#E0AF68, OSC 12)`,
           `${ANSI_COLORS.muted}Status:${ANSI_COLORS.reset} ${badge.formattedText}`,
           `${ANSI_COLORS.muted}Workspace:${ANSI_COLORS.reset} ${ctx.cwd}`,
           `${ANSI_COLORS.muted}Model:${ANSI_COLORS.reset} ${ctx.model?.name || ctx.model?.id || "default"}`,
@@ -154,6 +158,59 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
 
         if (ctx.hasUI && typeof ctx.ui?.notify === "function") {
           ctx.ui.notify(msg, "info");
+        }
+        return;
+      }
+
+      if (sub === "theme" || sub.startsWith("theme ") || sub === "themes") {
+        const themeArg = sub.replace(/^themes?/, "").trim();
+        if (!themeArg) {
+          const msg = [
+            `${ANSI_COLORS.bold}${ANSI_COLORS.blue}π Grok Build Themes (v0.3.0)${ANSI_COLORS.reset}`,
+            `  • ${ANSI_COLORS.cyan}grok-build-coding${ANSI_COLORS.reset} ${ANSI_COLORS.dim}(Dark, TokyoNight syntax, Recommended)${ANSI_COLORS.reset}`,
+            `  • ${ANSI_COLORS.blue}grok-build${ANSI_COLORS.reset} ${ANSI_COLORS.dim}(Dark, Minimal monochrome)${ANSI_COLORS.reset}`,
+            `  • ${ANSI_COLORS.amber}grok-build-day${ANSI_COLORS.reset} ${ANSI_COLORS.dim}(Light, GrokDay clean canvas)${ANSI_COLORS.reset}`,
+            ``,
+            `${ANSI_COLORS.muted}Switch theme via:${ANSI_COLORS.reset}`,
+            `  1. Run ${ANSI_COLORS.bold}/settings${ANSI_COLORS.reset} -> Theme`,
+            `  2. In ${ANSI_COLORS.dim}~/.pi/agent/settings.json${ANSI_COLORS.reset}: {"theme": "grok-build-coding"}`,
+            `  3. CLI flag: ${ANSI_COLORS.dim}pi --use-theme <name>${ANSI_COLORS.reset}`,
+          ].join("\n");
+          if (ctx.hasUI && typeof ctx.ui?.notify === "function") {
+            ctx.ui.notify(msg, "info");
+          }
+          return;
+        }
+
+        const validThemes: Record<string, string> = {
+          coding: "grok-build-coding",
+          "grok-build-coding": "grok-build-coding",
+          dark: "grok-build",
+          minimal: "grok-build",
+          "grok-build": "grok-build",
+          day: "grok-build-day",
+          light: "grok-build-day",
+          "grok-build-day": "grok-build-day",
+        };
+
+        const targetTheme = validThemes[themeArg];
+        if (targetTheme) {
+          const msg = [
+            `${ANSI_COLORS.bold}${ANSI_COLORS.blue}To activate ${targetTheme}:${ANSI_COLORS.reset}`,
+            `1. Run ${ANSI_COLORS.bold}/settings${ANSI_COLORS.reset} -> Theme -> Select ${ANSI_COLORS.cyan}${targetTheme}${ANSI_COLORS.reset}`,
+            `2. Or update ${ANSI_COLORS.dim}~/.pi/agent/settings.json${ANSI_COLORS.reset}:`,
+            `   {"theme": "${targetTheme}"}`,
+          ].join("\n");
+          if (ctx.hasUI && typeof ctx.ui?.notify === "function") {
+            ctx.ui.notify(msg, "info");
+          }
+        } else {
+          if (ctx.hasUI && typeof ctx.ui?.notify === "function") {
+            ctx.ui.notify(
+              `Unknown theme variant "${themeArg}". Available: coding, minimal (dark), day (light)`,
+              "warning",
+            );
+          }
         }
         return;
       }
@@ -188,7 +245,7 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
       }
 
       if (ctx.hasUI && typeof ctx.ui?.notify === "function") {
-        ctx.ui.notify(`Unknown subcommand "${sub}". Usage: /grok [info|status|toggle|header]`, "warning");
+        ctx.ui.notify(`Unknown subcommand "${sub}". Usage: /grok [info|status|theme|toggle|header]`, "warning");
       }
     },
   });

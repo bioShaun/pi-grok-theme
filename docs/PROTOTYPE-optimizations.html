@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PROTOTYPE — pi-grok-theme 对齐 Grok Build UI 探索</title>
+<style>
+  :root {
+    --bg: #0A0A0A;
+    --surface1: #141414;
+    --surface2: #1A1A1A;
+    --surface3: #242424;
+    --fg: #E1E1E1;
+    --fg2: #C8C8C8;
+    --muted: #88909F;
+    --dim: #686E78;
+    --border: #3E424A;
+    --borderMuted: #2B2E35;
+    --blue: #7AA2F7;
+    --cyan: #7DCFFF;
+    --amber: #E0AF68;
+    --purple: #BB9AF7;
+    --green: #9ECE6A;
+    --red: #F7768E;
+    --teal: #1ABC9C;
+    --gold: #FFDB8D;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', monospace;
+    background: var(--bg); color: var(--fg); line-height: 1.6;
+    padding: 2rem; max-width: 1280px; margin: 0 auto;
+  }
+  h1 { color: var(--blue); font-size: 1.4rem; margin-bottom: 0.2rem; }
+  h2 { color: var(--fg); font-size: 1.1rem; margin: 1.5rem 0 0.5rem; border-bottom: 1px solid var(--borderMuted); padding-bottom: 0.25rem; }
+  h3 { color: var(--cyan); font-size: 0.9rem; margin: 0.75rem 0 0.4rem; }
+  .proto-badge {
+    display: inline-block; background: var(--amber); color: var(--bg);
+    font-size: 0.65rem; font-weight: 700; padding: 0.1rem 0.5rem;
+    border-radius: 3px; margin-left: 0.5rem; vertical-align: middle;
+  }
+  .question {
+    background: var(--surface2); border-left: 3px solid var(--amber);
+    padding: 0.75rem 1rem; margin: 0.5rem 0 1rem; color: var(--fg2); font-size: 0.85rem;
+  }
+  /* State panel */
+  .state-panel {
+    background: var(--surface1); border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.75rem; margin: 0.75rem 0; font-size: 0.8rem;
+    max-height: 600px; overflow-y: auto;
+  }
+  .state-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--borderMuted);
+  }
+  .state-row:last-child { border-bottom: none; }
+  .state-row.category { background: var(--surface2); border-radius: 3px; margin-top: 0.3rem; }
+  .state-row .label { color: var(--muted); flex: 1; }
+  .state-row .feature-name { color: var(--fg); flex: 2; }
+  .state-row .status { flex: 1; text-align: right; }
+  .done { color: var(--green); } .feasible { color: var(--cyan); }
+  .workaround { color: var(--purple); } .blocked { color: var(--red); }
+  .partial { color: var(--amber); } .unknown { color: var(--dim); }
+  /* Terminal preview */
+  .terminal-preview {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+    padding: 0.75rem; font-size: 0.8rem; line-height: 1.7;
+    white-space: pre; overflow-x: auto; margin: 0.5rem 0;
+  }
+  /* Buttons */
+  .btn-group { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0; }
+  button {
+    font-family: inherit; font-size: 0.75rem; padding: 0.35rem 0.75rem;
+    border: 1px solid var(--border); border-radius: 4px;
+    background: var(--surface2); color: var(--fg2); cursor: pointer;
+    transition: all 0.15s;
+  }
+  button:hover { border-color: var(--blue); color: var(--fg); background: var(--surface3); }
+  button:active { background: var(--border); }
+  button.primary { background: var(--blue); color: var(--bg); border-color: var(--blue); font-weight: 600; }
+  button.primary:hover { opacity: 0.85; }
+  button.danger { border-color: var(--red); color: var(--red); }
+  button.success { border-color: var(--green); color: var(--green); }
+  button:disabled { opacity: 0.3; cursor: not-allowed; }
+  /* Tabs */
+  .tabs { display: flex; gap: 0; margin-top: 1rem; border-bottom: 1px solid var(--border); }
+  .tab {
+    padding: 0.35rem 0.85rem; font-size: 0.75rem;
+    border: 1px solid transparent; border-bottom: none; border-radius: 4px 4px 0 0;
+    cursor: pointer; color: var(--muted); background: transparent;
+  }
+  .tab:hover { color: var(--fg2); }
+  .tab.active {
+    color: var(--fg); border-color: var(--border);
+    background: var(--surface1); border-bottom: 1px solid var(--surface1); margin-bottom: -1px;
+  }
+  .tab-content { display: none; padding: 0.75rem; background: var(--surface1); border: 1px solid var(--border); border-top: none; font-size: 0.82rem; }
+  .tab-content.active { display: block; }
+  .walkthrough-step {
+    display: flex; align-items: center; gap: 0.6rem; padding: 0.25rem 0;
+  }
+  .step-num {
+    width: 1.4rem; height: 1.4rem; border-radius: 50%; background: var(--surface3);
+    color: var(--muted); display: flex; align-items: center; justify-content: center;
+    font-size: 0.65rem; flex-shrink: 0;
+  }
+  .step-num.done { background: var(--green); color: var(--bg); }
+  .step-num.current { background: var(--blue); color: var(--bg); }
+  .step-desc { color: var(--fg2); font-size: 0.78rem; }
+  /* Log */
+  .log-panel {
+    background: var(--bg); border: 1px solid var(--borderMuted); border-radius: 4px;
+    padding: 0.5rem 0.75rem; max-height: 150px; overflow-y: auto;
+    font-size: 0.72rem; margin-top: 0.5rem;
+  }
+  .log-entry { color: var(--dim); padding: 0.1rem 0; }
+  .log-entry .action { color: var(--amber); }
+  .log-entry .result { color: var(--fg2); }
+  /* Verdict */
+  .verdict {
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 1rem; margin-top: 1rem; display: none;
+  }
+  .verdict.visible { display: block; }
+  hr.divider { border: none; border-top: 1px solid var(--borderMuted); margin: 1.5rem 0; }
+  .note { color: var(--muted); font-size: 0.78rem; margin: 0.3rem 0; }
+  .grok-ref { color: var(--dim); font-size: 0.7rem; font-style: italic; }
+</style>
+</head>
+<body>
+
+<h1>π pi-grok-theme · 对齐 Grok Build UI <span class="proto-badge">PROTOTYPE</span></h1>
+<div class="question">
+  <strong>探索的问题：</strong>基于 grok-build 真实源码（glyphs.rs / theme/mod.rs / prompt_widget / scrollback / turn_status），
+  Pi 主题扩展还需要对齐哪些 Grok Build UI 特征？每个特征在 Pi Extension API 下的可行性如何？<br>
+  <em>不只是 development-notes.md 的 4 条——完整覆盖 Grok Build 的核心视觉特征。</em>
+</div>
+
+<!-- =============== STATE PANEL =============== -->
+<h2>📊 特征对齐矩阵</h2>
+<p class="note">⚪未探测 → 点击按钮探测 → 🟢已完成 🔵可行 🟡可绕行 🔴阻塞</p>
+<div class="state-panel" id="statePanel"></div>
+
+<!-- =============== TERMINAL PREVIEW =============== -->
+<h2>🖥 终端预览 — Grok Build 风格 vs 当前 Pi</h2>
+<div style="display:flex;gap:1rem;flex-wrap:wrap;">
+  <div style="flex:1;min-width:300px;">
+    <h3>Grok Build（目标）</h3>
+    <div class="terminal-preview" id="grokPreview"></div>
+  </div>
+  <div style="flex:1;min-width:300px;">
+    <h3>Pi + pi-grok-theme（当前）</h3>
+    <div class="terminal-preview" id="piPreview"></div>
+  </div>
+</div>
+
+<!-- =============== FREE PLAY =============== -->
+<h2>🎮 自由探索</h2>
+<p class="note">点击按钮探测每个 Grok Build UI 特征在 Pi 中的实现可行性</p>
+
+<h3>A. 输入区域（Prompt Composer）</h3>
+<div class="btn-group">
+  <button onclick="probeFeature('prompt_arrow')">❯ 提示符箭头</button>
+  <button onclick="probeFeature('prompt_border_box')">╭╮╰╯ 圆角边框盒</button>
+  <button onclick="probeFeature('prompt_info_divider')">底栏 model·plan·usage</button>
+  <button onclick="probeFeature('prompt_session_title')">顶栏 session 标题</button>
+  <button onclick="probeFeature('prompt_ghost_text')">Ghost 自动补全文本</button>
+  <button onclick="probeFeature('prompt_slash_highlight')">/ 命令实时高亮</button>
+</div>
+
+<h3>B. 消息渲染（Scrollback）</h3>
+<div class="btn-group">
+  <button onclick="probeFeature('accent_rail')">┃ 左侧彩色 accent rail</button>
+  <button onclick="probeFeature('thinking_block')">Thinking 折叠块</button>
+  <button onclick="probeFeature('thinking_wave')">🌊 thinking 正弦波动画</button>
+  <button onclick="probeFeature('tool_fold')">◆ 工具分组折叠</button>
+  <button onclick="probeFeature('diff_inline')">+N/-M 内联 diffstat</button>
+  <button onclick="probeFeature('md_heading_colors')">Markdown 标题色阶</button>
+</div>
+
+<h3>C. 状态指示器（Turn Status）</h3>
+<div class="btn-group">
+  <button onclick="probeFeature('braille_spinner')">⠧ Braille 旋转器</button>
+  <button onclick="probeFeature('activity_label')">动态活动描述</button>
+  <button onclick="probeFeature('turn_timer')">回合计时器</button>
+  <button onclick="probeFeature('token_counter')">⇣ token 计数器</button>
+  <button onclick="probeFeature('stop_button')">[stop] 停止按钮</button>
+  <button onclick="probeFeature('idle_pulse')">○◎◉ 空闲脉冲动画</button>
+</div>
+
+<h3>D. 主题系统</h3>
+<div class="btn-group">
+  <button onclick="probeFeature('cursor_osc12')">OSC 12 光标色同步</button>
+  <button onclick="probeFeature('auto_theme')">Auto 亮暗主题切换</button>
+  <button onclick="probeFeature('grokday_theme')">GrokDay 亮色主题</button>
+  <button onclick="probeFeature('prompt_border_active')">聚焦/非聚焦边框色</button>
+  <button onclick="probeFeature('accent_colors')">多角色 accent 色系</button>
+</div>
+
+<h3>E. 布局与导航</h3>
+<div class="btn-group">
+  <button onclick="probeFeature('timeline_rail')">▲▼ Timeline 时间轴</button>
+  <button onclick="probeFeature('shortcuts_bar')">底部快捷键栏</button>
+  <button onclick="probeFeature('btw_overlay')">Side Question 浮层</button>
+</div>
+
+<hr class="divider">
+<div class="btn-group">
+  <button class="danger" onclick="resetAll()">🔄 全部重置</button>
+  <button class="success" onclick="probeAll()">⚡ 一键全部探测</button>
+</div>
+
+<!-- =============== WALKTHROUGHS =============== -->
+<h2>📝 引导场景</h2>
+<div class="tabs">
+  <div class="tab active" onclick="switchTab(0)">场景 A: 投入产出最优路径</div>
+  <div class="tab" onclick="switchTab(1)">场景 B: 全量 Grok Build 对齐</div>
+  <div class="tab" onclick="switchTab(2)">场景 C: 原 notes 的 4 个方向</div>
+</div>
+
+<div class="tab-content active" id="tab0">
+  <p class="note">
+    <strong>场景：</strong>按可行性 × 视觉冲击力排序，找出性价比最高的优化路径。<br>
+    <strong>观察点：</strong>哪些改动只需改 JSON/TS、就能明显拉近与 Grok Build 的差距？
+  </p>
+  <div id="walkthrough0"></div>
+  <div class="btn-group" style="margin-top:0.5rem;">
+    <button class="primary" onclick="stepWalkthrough(0)">▶ 执行下一步</button>
+    <button onclick="resetWalkthrough(0)">↩ 重置</button>
+  </div>
+</div>
+<div class="tab-content" id="tab1">
+  <p class="note">
+    <strong>场景：</strong>逐一探测 Grok Build 的每个核心视觉特征，完整描绘可行性全景图。<br>
+    <strong>观察点：</strong>Pi Extension API 的能力边界在哪？
+  </p>
+  <div id="walkthrough1"></div>
+  <div class="btn-group" style="margin-top:0.5rem;">
+    <button class="primary" onclick="stepWalkthrough(1)">▶ 执行下一步</button>
+    <button onclick="resetWalkthrough(1)">↩ 重置</button>
+  </div>
+</div>
+<div class="tab-content" id="tab2">
+  <p class="note">
+    <strong>场景：</strong>仅探测 development-notes.md 原始 4 个方向——对比研究后看它们是否真的是最重要的。<br>
+    <strong>观察点：</strong>原 notes 是否遗漏了更有价值的优化方向？
+  </p>
+  <div id="walkthrough2"></div>
+  <div class="btn-group" style="margin-top:0.5rem;">
+    <button class="primary" onclick="stepWalkthrough(2)">▶ 执行下一步</button>
+    <button onclick="resetWalkthrough(2)">↩ 重置</button>
+  </div>
+</div>
+
+<!-- =============== LOG =============== -->
+<h2>📋 操作日志</h2>
+<div class="log-panel" id="logPanel"></div>
+
+<!-- =============== VERDICT =============== -->
+<div class="verdict" id="verdictPanel">
+  <h3 style="color:var(--amber)">📌 结论 — 建议优化路线图</h3>
+  <div id="verdictContent"></div>
+</div>
+
+<script>
+/**
+ * PROTOTYPE LOGIC MODULE
+ * Models Grok Build UI features against Pi Extension API capabilities.
+ * Pure state, no DOM.
+ */
+
+// Feature database: what Grok Build has, and what Pi can do about it
+const FEATURES = {
+  // === A. Prompt Composer ===
+  prompt_arrow: {
+    category: 'A. 输入区域',
+    name: '❯ 提示符箭头',
+    grokImpl: 'glyphs.rs: PROMPT_ARROW = "❯ "，带 accent_user 着色 (#C8C8C8)',
+    piStatus: 'missing',
+    feasibility: 'workaround',
+    effort: 2,
+    impact: 3,
+    note: 'Pi 编辑器提示符硬编码。可通过 setEditorComponent() 替换整个编辑器实现，但复杂度极高。也可尝试在 footer/header 中暗示 Grok 风格。',
+    piApi: 'setEditorComponent() 存在但需重写整个编辑器 TUI',
+  },
+  prompt_border_box: {
+    category: 'A. 输入区域',
+    name: '╭╮╰╯ 圆角边框盒',
+    grokImpl: 'prompt_widget/mod.rs: 使用 ╭─╮ / ╰─╯ 圆角 Unicode box drawing',
+    piStatus: 'partial',
+    feasibility: 'done',
+    effort: 0,
+    impact: 2,
+    note: 'Pi 编辑器已有 ─ 横线边框（由 thinkingLevel 控制颜色）。圆角 ╭╮╰╯ 需 setEditorComponent() 替换。当前横线版已足够接近。',
+    piApi: '已通过 thinkingOff/thinkingHigh 等映射到 Grok 炭灰色阶',
+  },
+  prompt_info_divider: {
+    category: 'A. 输入区域',
+    name: '底栏 model·plan·usage 信息',
+    grokImpl: 'prompt_widget: 底部边框嵌入 model名(teal)·plan(gold)·usage%(yellow)',
+    piStatus: 'done',
+    feasibility: 'done',
+    effort: 0,
+    impact: 3,
+    note: '✅ 已通过 footer.ts 实现！渲染 branch·model·context%·thinking·status 单行底栏，和 Grok Build 底部信息栏功能一致。',
+    piApi: 'ctx.ui.setFooter() — 已完整实现',
+  },
+  prompt_session_title: {
+    category: 'A. 输入区域',
+    name: '顶栏 session 标题',
+    grokImpl: 'prompt_widget: 顶部边框右侧嵌入 session title',
+    piStatus: 'done',
+    feasibility: 'done',
+    effort: 0,
+    impact: 1,
+    note: '✅ 已通过 header.ts 实现（默认关闭，/grok header 切换），渲染 ╭─ GROK BUILD ─╮ 标题框。',
+    piApi: 'ctx.ui.setHeader() — 已实现（默认关闭）',
+  },
+  prompt_ghost_text: {
+    category: 'A. 输入区域',
+    name: 'Ghost 自动补全文本',
+    grokImpl: 'prompt_widget: italic ghost_text_style 渲染下一条建议',
+    piStatus: 'missing',
+    feasibility: 'blocked',
+    effort: 4,
+    impact: 1,
+    note: '需要 Pi 核心编辑器支持 ghost text 渲染钩子，Extension API 无此接口。',
+    piApi: '无 API — 需 Pi 上游支持',
+  },
+  prompt_slash_highlight: {
+    category: 'A. 输入区域',
+    name: '/ 命令实时高亮',
+    grokImpl: 'prompt_widget: /command 实时着 accent_skill (teal) 色',
+    piStatus: 'missing',
+    feasibility: 'blocked',
+    effort: 3,
+    impact: 1,
+    note: '需要编辑器输入实时语法高亮钩子，Extension API 无此能力。',
+    piApi: '无 API — 需 Pi 上游支持',
+  },
+
+  // === B. Scrollback ===
+  accent_rail: {
+    category: 'B. 消息渲染',
+    name: '┃ 左侧彩色 accent rail',
+    grokImpl: 'scrollback: 每种消息类型用不同色 ┃ 竖线标记（user=#c8c8c8, assistant=#bb9af7, tool=#787878, error=#f7768e）',
+    piStatus: 'missing',
+    feasibility: 'workaround',
+    effort: 2,
+    impact: 4,
+    note: 'Pi 主题可通过 userMessageBg、customMessageBg 区分消息背景色，但无法添加左侧竖线 accent rail。需 setEditorComponent 或等 Pi 上游扩展消息渲染 API。',
+    piApi: '部分可通过 customMessageLabel 着色模拟，但无左侧竖线能力',
+  },
+  thinking_block: {
+    category: 'B. 消息渲染',
+    name: 'Thinking 折叠块',
+    grokImpl: 'scrollback/thinking.rs: "Thought for 3.4s" 可折叠，muted italic markdown',
+    piStatus: 'partial',
+    feasibility: 'done',
+    effort: 0,
+    impact: 2,
+    note: '✅ Pi 原生支持 thinking 展示，主题已通过 thinkingText: "muted" 设为减淡显示。折叠行为由 Pi 核心控制。',
+    piApi: 'thinkingText 色值已对齐',
+  },
+  thinking_wave: {
+    category: 'B. 消息渲染',
+    name: '🌊 thinking 正弦波动画',
+    grokImpl: 'scrollback: accent rail 上正弦波亮度行进动画，30fps',
+    piStatus: 'missing',
+    feasibility: 'blocked',
+    effort: 5,
+    impact: 2,
+    note: 'Grok Build 最有辨识度的视觉特征之一。但需要逐帧控制渲染区域，Pi Extension API 无法做到。纯终端 ANSI 动画理论上可行但与 Pi 渲染循环冲突。',
+    piApi: '无 API — Ratatui 级渲染控制，Pi 不开放',
+  },
+  tool_fold: {
+    category: 'B. 消息渲染',
+    name: '◆ 工具分组折叠',
+    grokImpl: 'scrollback/tool: 连续同类工具调用折叠为 "◆ Read 4 files · 0.8s"',
+    piStatus: 'missing',
+    feasibility: 'blocked',
+    effort: 4,
+    impact: 3,
+    note: '工具输出的渲染和折叠由 Pi 核心控制。Extension API 无法干预工具块的分组逻辑。',
+    piApi: '无 API — 需 Pi 上游消息渲染扩展',
+  },
+  diff_inline: {
+    category: 'B. 消息渲染',
+    name: '+N/-M 内联 diffstat',
+    grokImpl: 'scrollback/tool: 编辑工具折叠时显示 +12/-3 行统计',
+    piStatus: 'partial',
+    feasibility: 'done',
+    effort: 0,
+    impact: 2,
+    note: '✅ Pi 已有 diff 渲染，主题通过 toolDiffAdded(green)/toolDiffRemoved(red)/toolDiffContext(fgSecondary) 着色。折叠摘要由 Pi 核心控制。',
+    piApi: 'toolDiff* 色值已对齐',
+  },
+  md_heading_colors: {
+    category: 'B. 消息渲染',
+    name: 'Markdown 标题色阶',
+    grokImpl: 'theme: md_heading_h1(teal) → h2(blue) → h3(purple) → h4(gray_bright) → h5(gray) → h6(gray_dim)',
+    piStatus: 'partial',
+    feasibility: 'workaround',
+    effort: 1,
+    impact: 2,
+    note: 'Pi 主题只有单一 mdHeading 色值，无法按 h1-h6 分级设色。当前统一设为 fg (#E1E1E1)。',
+    piApi: '仅支持单一 mdHeading — 无 h1-h6 分级',
+  },
+
+  // === C. Turn Status ===
+  braille_spinner: {
+    category: 'C. 状态指示器',
+    name: '⠧ Braille 旋转器',
+    grokImpl: 'turn_status: ⠋⠙⠹⠸⠼⠴⠦⠧ Braille spinner ~7.5fps',
+    piStatus: 'partial',
+    feasibility: 'done',
+    effort: 0,
+    impact: 2,
+    note: '✅ 已通过 status.ts 实现 ● dot 指示器 + 颜色状态切换。未使用 Braille 旋转器（因 Pi 的 setWorkingMessage 是文本式，非帧式渲染）。当前 ● 静态点 + 状态色已足够。',
+    piApi: 'setWorkingMessage() 拦截已实现',
+  },
+  activity_label: {
+    category: 'C. 状态指示器',
+    name: '动态活动描述',
+    grokImpl: 'turn_status: "Thinking…" / "Run git status…" / "Writing edit…" / "Retrying…"',
+    piStatus: 'done',
+    feasibility: 'done',
+    effort: 0,
+    impact: 3,
+    note: '✅ 已通过 status.ts normalizeToolAction() + filterWorkingMessage() 实现。thinking/running bash/editing file/searching 等简明标签。',
+    piApi: 'setWorkingMessage 拦截 + tool_start/tool_end 事件',
+  },
+  turn_timer: {
+    category: 'C. 状态指示器',
+    name: '回合计时器',
+    grokImpl: 'turn_status: 左侧阶段计时 + 右侧总回合计时 (1m20s)',
+    piStatus: 'done',
+    feasibility: 'done',
+    effort: 0,
+    impact: 2,
+    note: '✅ 已通过 status.ts formatDuration() 实现。在 footer 状态中显示 (3.1s)。',
+    piApi: 'WorkingStateController 计时已实现',
+  },
+  token_counter: {
+    category: 'C. 状态指示器',
+    name: '⇣ Token 计数器',
+    grokImpl: 'turn_status: 右侧 ⇣12.4k token 消耗显示',
+    piStatus: 'done',
+    feasibility: 'done',
+    effort: 0,
+    impact: 2,
+    note: '✅ 已通过 footer.ts renderContextMetric() 实现。显示 48k/200k (24%) 或紧凑模式 24%。',
+    piApi: 'ctx.getContextUsage() — 已实现',
+  },
+  stop_button: {
+    category: 'C. 状态指示器',
+    name: '[stop] 停止按钮',
+    grokImpl: 'turn_status: 右侧 [stop] 红色交互按钮',
+    piStatus: 'missing',
+    feasibility: 'blocked',
+    effort: 3,
+    impact: 1,
+    note: 'Pi 的停止机制是 Ctrl+C。Extension API 无法在 footer/status 中渲染可点击的交互按钮。',
+    piApi: '无可点击元素 API',
+  },
+  idle_pulse: {
+    category: 'C. 状态指示器',
+    name: '○◎◉ 空闲脉冲动画',
+    grokImpl: 'turn_status: 后台任务运行时 ○◎◉◎ 脉冲动画 ~3.75fps',
+    piStatus: 'missing',
+    feasibility: 'blocked',
+    effort: 3,
+    impact: 1,
+    note: '需要帧级渲染控制。Pi footer 渲染是被动触发（窗口 resize/状态变化），无法驱动连续动画。',
+    piApi: '无帧渲染 API — footer 是被动 render()',
+  },
+
+  // === D. Theme System ===
+  cursor_osc12: {
+    category: 'D. 主题系统',
+    name: 'OSC 12 光标色同步',
+    grokImpl: 'theme/mod.rs: apply_cursor_color() 发 \\x1b]12;rgb:RR/GG/BB\\x07 同步 accent_user 到终端光标',
+    piStatus: 'missing',
+    feasibility: 'feasible',
+    effort: 1,
+    impact: 3,
+    note: '🔑 这就是 Grok Build 的光标色方案！不是 theme JSON，而是运行时 OSC 12 转义序列。Pi 扩展可以在 session_start 时写入 stdout 发送 OSC 12 设置光标色，session_shutdown 时发 OSC 112 恢复。',
+    piApi: 'process.stdout.write() 发 OSC 12 — 完全可行！',
+  },
+  auto_theme: {
+    category: 'D. 主题系统',
+    name: 'Auto 亮暗主题切换',
+    grokImpl: 'theme/system_appearance.rs: 5s 轮询系统外观 + env_appearance.rs: GROK_APPEARANCE 环境变量 + osc11.rs: OSC 11 查询终端背景色推断亮暗',
+    piStatus: 'missing',
+    feasibility: 'workaround',
+    effort: 3,
+    impact: 2,
+    note: 'Pi 不支持运行时主题热切换。可通过 /grok dark|light 命令提示用户修改配置并重启。也可提供 install 脚本自动检测系统外观并设置默认主题。',
+    piApi: '无 setTheme() — 可注册命令引导用户',
+  },
+  grokday_theme: {
+    category: 'D. 主题系统',
+    name: 'GrokDay 亮色主题',
+    grokImpl: 'theme/grokday.rs: bg_base=#eeeeee 亮色中性灰底 + 高对比度加深 accent',
+    piStatus: 'missing',
+    feasibility: 'feasible',
+    effort: 2,
+    impact: 2,
+    note: '完全可行——创建 themes/grok-build-day.json 亮色主题 JSON。Grok Build 有完整的 GrokDay 色值可参考。',
+    piApi: '新建主题 JSON 文件即可',
+  },
+  prompt_border_active: {
+    category: 'D. 主题系统',
+    name: '聚焦/非聚焦边框色',
+    grokImpl: 'theme: prompt_border=#323237(idle) → prompt_border_active=#505058(focused)',
+    piStatus: 'partial',
+    feasibility: 'done',
+    effort: 0,
+    impact: 1,
+    note: '已通过 thinkingOff(borderMuted) → thinkingHigh(border) 实现动态边框层级。非完全等价于 focus/blur，但视觉效果类似。',
+    piApi: 'thinkingLevel 色值映射已实现',
+  },
+  accent_colors: {
+    category: 'D. 主题系统',
+    name: '多角色 accent 色系',
+    grokImpl: 'theme: accent_user(#c8c8c8) / accent_assistant(#bb9af7) / accent_tool(#787878) / accent_error(#f7768e) / accent_plan(#ffdb8d) / accent_model(#1abc9c) 等 12+ 语义角色色',
+    piStatus: 'partial',
+    feasibility: 'done',
+    effort: 0,
+    impact: 3,
+    note: '✅ 已通过主题 JSON 覆盖大部分语义色值（success/error/warning/toolTitle/toolDiff*/mdLink 等）。但 Pi 的语义色数量少于 Grok Build 的 12+ 角色色。',
+    piApi: '主题 JSON colors.* — 已最大化利用',
+  },
+
+  // === E. Layout ===
+  timeline_rail: {
+    category: 'E. 布局与导航',
+    name: '▲▼ Timeline 时间轴',
+    grokImpl: 'views: 替代滚动条，用 ━━/── 和 ▲▼ 标记对话轮次',
+    piStatus: 'missing',
+    feasibility: 'blocked',
+    effort: 5,
+    impact: 2,
+    note: 'Pi 使用标准终端滚动。无法通过扩展 API 替换滚动条为自定义 Timeline。',
+    piApi: '无滚动区域自定义 API',
+  },
+  shortcuts_bar: {
+    category: 'E. 布局与导航',
+    name: '底部快捷键栏',
+    grokImpl: 'views: 最底行动态快捷键提示 "? help  ^C cancel  Tab next"',
+    piStatus: 'missing',
+    feasibility: 'workaround',
+    effort: 2,
+    impact: 1,
+    note: 'Pi footer 只有一行。可在 footer 中集成简化版快捷键提示，但空间有限，需牺牲其他信息。',
+    piApi: 'setFooter() — 可扩展但空间受限',
+  },
+  btw_overlay: {
+    category: 'E. 布局与导航',
+    name: 'Side Question 浮层',
+    grokImpl: 'views/btw: /btw 侧问浮层，不打断主对话',
+    piStatus: 'missing',
+    feasibility: 'blocked',
+    effort: 5,
+    impact: 2,
+    note: 'Pi 无浮层/覆盖层 API。需 Pi 核心支持多面板渲染。',
+    piApi: '无浮层 API',
+  },
+};
+
+// State
+let state = {};
+let logs = [];
+let walkthroughSteps = [0, 0, 0];
+
+function initState() {
+  state = {};
+  for (const [id, f] of Object.entries(FEATURES)) {
+    state[id] = { probed: false };
+  }
+}
+initState();
+
+function probeFeature(id) {
+  state[id].probed = true;
+  const f = FEATURES[id];
+  const icons = { done: '✅', feasible: '🔵', workaround: '⚠️', blocked: '❌' };
+  addLog(
+    `探测 ${f.name}`,
+    `${icons[f.feasibility] || '?'} ${f.feasibility} — ${f.note.slice(0, 60)}…`
+  );
+  render();
+  checkVerdict();
+}
+
+function probeAll() {
+  for (const id of Object.keys(FEATURES)) {
+    state[id].probed = true;
+  }
+  addLog('⚡ 一键全部探测', '所有 ' + Object.keys(FEATURES).length + ' 个特征已探测');
+  render();
+  checkVerdict();
+}
+
+function resetAll() {
+  initState();
+  logs = [];
+  walkthroughSteps = [0, 0, 0];
+  document.getElementById('verdictPanel').classList.remove('visible');
+  render(); renderLog(); renderWalkthroughs();
+}
+
+function addLog(action, result) {
+  const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+  logs.unshift({ time, action, result });
+  if (logs.length > 60) logs.pop();
+  renderLog();
+}
+
+function checkVerdict() {
+  const total = Object.keys(FEATURES).length;
+  const probed = Object.values(state).filter(s => s.probed).length;
+  if (probed >= total) showVerdict();
+}
+
+function showVerdict() {
+  const panel = document.getElementById('verdictPanel');
+  const content = document.getElementById('verdictContent');
+
+  const buckets = { done: [], feasible: [], workaround: [], blocked: [] };
+  for (const [id, f] of Object.entries(FEATURES)) {
+    buckets[f.feasibility].push(f);
+  }
+
+  // Sort feasible + workaround by impact desc, effort asc
+  const actionable = [...Object.entries(FEATURES)]
+    .filter(([, f]) => f.feasibility === 'feasible' || f.feasibility === 'workaround')
+    .sort(([, a], [, b]) => (b.impact - a.impact) || (a.effort - b.effort));
+
+  let html = '';
+  html += `<p style="color:var(--green);margin:0.4rem 0"><strong>✅ 已完成 (${buckets.done.length}):</strong> ${buckets.done.map(f => f.name).join('、')}</p>`;
+
+  if (actionable.length) {
+    html += `<p style="color:var(--amber);margin:0.75rem 0 0.3rem"><strong>🎯 推荐优化路线（按 影响力×可行性 排序）：</strong></p>`;
+    actionable.forEach(([id, f], i) => {
+      const icon = f.feasibility === 'feasible' ? '🔵' : '⚠️';
+      const effort = '⚡'.repeat(Math.min(f.effort, 5)) || '⚡';
+      const impact = '★'.repeat(f.impact);
+      html += `<div style="margin:0.3rem 0 0.3rem 0.5rem;color:var(--fg2);font-size:0.82rem">
+        <strong>P${i + 1}.</strong> ${icon} ${f.name}
+        <span style="color:var(--dim)">| 影响 ${impact} | 工作量 ${effort}</span><br>
+        <span style="color:var(--muted);margin-left:2rem;font-size:0.78rem">${f.note}</span>
+      </div>`;
+    });
+  }
+
+  html += `<p style="color:var(--red);margin:0.75rem 0 0.3rem"><strong>❌ 阻塞 — 需 Pi 上游支持 (${buckets.blocked.length}):</strong></p>`;
+  html += `<p style="color:var(--fg2);font-size:0.78rem;margin-left:0.5rem">${buckets.blocked.map(f => f.name).join('、')}</p>`;
+
+  html += `<hr style="border:none;border-top:1px solid var(--borderMuted);margin:1rem 0">`;
+  html += `<p style="color:var(--amber);font-size:0.85rem"><strong>💡 关键发现：</strong></p>`;
+  html += `<p style="color:var(--fg2);font-size:0.82rem;margin:0.3rem 0">
+    1. <strong>OSC 12 光标色</strong>是最被低估的优化——Grok Build 的光标色不是靠主题 JSON，而是运行时 OSC 12 终端转义序列。Pi 扩展完全能做！<br>
+    2. <strong>GrokDay 亮色主题</strong>是纯 JSON 工作，零风险高回报。<br>
+    3. <strong>accent rail（左侧彩色竖线）</strong>是 Grok Build 最核心的视觉辨识特征，但 Pi API 不支持。<br>
+    4. 原 notes 的 4 个方向中，<strong>光标色</strong>方向判断有误（应该用 OSC 12 而非主题 JSON），<strong>自动主题切换</strong>优先级不高。
+  </p>`;
+
+  content.innerHTML = html;
+  panel.classList.add('visible');
+}
+
+// Walkthroughs
+const WALKTHROUGHS = [
+  // A: Best ROI path
+  {
+    steps: [
+      { action: () => probeFeature('cursor_osc12'), label: '① OSC 12 光标色同步 → 🔵 可行！影响★★★' },
+      { action: () => probeFeature('grokday_theme'), label: '② GrokDay 亮色主题 → 🔵 可行！纯 JSON 工作' },
+      { action: () => probeFeature('accent_colors'), label: '③ 多角色 accent 色系 → ✅ 已大部分完成' },
+      { action: () => probeFeature('md_heading_colors'), label: '④ Markdown h1-h6 色阶 → ⚠️ Pi 仅支持单一 mdHeading' },
+      { action: () => probeFeature('accent_rail'), label: '⑤ 左侧 accent rail → ⚠️ 最有辨识度但 API 受限' },
+      { action: () => probeFeature('prompt_arrow'), label: '⑥ ❯ 提示符 → ⚠️ setEditorComponent 可行但复杂' },
+    ],
+  },
+  // B: Full Grok alignment
+  {
+    steps: Object.keys(FEATURES).map((id, i) => ({
+      action: () => probeFeature(id),
+      label: `${i + 1}. 探测: ${FEATURES[id].name}`,
+    })),
+  },
+  // C: Original 4 directions from notes
+  {
+    steps: [
+      { action: () => probeFeature('prompt_arrow'), label: '① 原方向1: 自定义 Prompt Arrow' },
+      { action: () => probeFeature('cursor_osc12'), label: '② 原方向2: 光标颜色 → 💡 应该用 OSC 12！不是主题 JSON' },
+      { action: () => probeFeature('prompt_border_active'), label: '③ 原方向3: 活动边框色 → ✅ 已通过 thinking 色值解决' },
+      { action: () => probeFeature('auto_theme'), label: '④ 原方向4: 自动主题切换 → ⚠️ 可绕行' },
+    ],
+  },
+];
+
+// Rendering
+function render() { renderState(); renderPreview(); }
+
+function renderState() {
+  const panel = document.getElementById('statePanel');
+  let html = '';
+  let lastCat = '';
+  for (const [id, f] of Object.entries(FEATURES)) {
+    if (f.category !== lastCat) {
+      lastCat = f.category;
+      html += `<div class="state-row category"><span style="color:var(--cyan);font-weight:600">${f.category}</span><span></span></div>`;
+    }
+    const probed = state[id].probed;
+    let statusHtml, statusClass;
+    if (!probed) {
+      statusHtml = '⚪ 未探测'; statusClass = 'unknown';
+    } else {
+      const map = { done: ['✅ 已完成', 'done'], feasible: ['🔵 可行', 'feasible'], workaround: ['⚠️ 可绕行', 'workaround'], blocked: ['❌ 阻塞', 'blocked'] };
+      [statusHtml, statusClass] = map[f.feasibility] || ['?', 'unknown'];
+    }
+    html += `<div class="state-row">
+      <span class="feature-name">${f.name}</span>
+      <span class="status ${statusClass}">${statusHtml}</span>
+    </div>`;
+    if (probed) {
+      html += `<div class="state-row" style="padding-left:1.5rem;">
+        <span class="label" style="font-size:0.72rem">${f.note.slice(0, 100)}${f.note.length > 100 ? '…' : ''}</span>
+      </div>`;
+    }
+  }
+  panel.innerHTML = html;
+}
+
+function renderPreview() {
+  // Grok Build reference
+  document.getElementById('grokPreview').innerHTML =
+`<span style="color:var(--dim)">╭───────────────────────────────────── </span><span style="color:var(--muted)">session: refactor auth</span><span style="color:var(--dim)"> ──╮</span>
+<span style="color:var(--dim)">│</span> <span style="color:var(--fg2)">❯ </span>帮我优化这个函数的性能<span style="background:var(--amber);color:var(--bg)"> </span>               <span style="color:var(--dim)">│</span>
+<span style="color:var(--dim)">╰──────── </span><span style="color:var(--teal)">grok-3</span><span style="color:var(--dim)"> · </span><span style="color:var(--gold)">plan</span><span style="color:var(--dim)"> · </span><span style="color:var(--fg2)">5% usage left</span><span style="color:var(--dim)"> ──────── multiline ──╯</span>
+
+<span style="color:var(--purple)">┃</span> 这个函数可以通过以下方式优化：
+<span style="color:var(--purple)">┃</span>
+<span style="color:var(--purple)">┃</span> <span style="color:var(--fg)">## 1. 减少不必要的内存分配</span>
+<span style="color:var(--purple)">┃</span> 当前实现在每次循环中创建新的 Vec...
+
+<span style="color:var(--dim)">┃</span> <span style="color:var(--green)">✓</span> <span style="color:var(--dim)">Read 3 files · 0.4s</span>
+<span style="color:var(--amber)">┃</span> <span style="color:var(--amber)">⠧</span> <span style="color:var(--fg2)">Writing edit… 0.2s</span>      <span style="color:var(--dim)">1m20s ⇣12.4k [stop]</span>`;
+
+  // Pi current
+  const osc12Done = state['cursor_osc12'].probed && FEATURES['cursor_osc12'].feasibility === 'feasible';
+  const cursorColor = osc12Done ? 'var(--amber)' : 'var(--fg)';
+
+  document.getElementById('piPreview').innerHTML =
+`<span style="color:var(--border)">────────────────────────────────────────────────────────────</span>
+<span style="color:var(--dim)">&gt; </span>帮我优化这个函数的性能<span style="background:${cursorColor};color:var(--bg)"> </span>
+<span style="color:var(--border)">────────────────────────────────────────────────────────────</span>
+
+  这个函数可以通过以下方式优化：
+
+  <span style="color:var(--fg)">## 1. 减少不必要的内存分配</span>
+  当前实现在每次循环中创建新的 Vec...
+
+  <span style="color:var(--blue)">⚡ Read</span> <span style="color:var(--fg2)">src/utils.ts</span>
+  <span style="color:var(--blue)">⚡ Read</span> <span style="color:var(--fg2)">src/main.ts</span>
+<span style="color:var(--dim)">~/pi/project</span>  <span style="color:var(--cyan)">⎇ main</span> <span style="color:var(--dim)">·</span> <span style="color:var(--fg)">grok-3</span> <span style="color:var(--dim)">·</span> <span style="color:var(--fg2)">24%</span> <span style="color:var(--dim)">·</span> <span style="color:var(--amber)">●</span> <span style="color:var(--fg2)">editing file (0.2s)</span>`;
+}
+
+function renderLog() {
+  const panel = document.getElementById('logPanel');
+  if (!logs.length) {
+    panel.innerHTML = '<div class="log-entry" style="color:var(--muted)">尚无操作。点击按钮开始探索，或选择引导场景。</div>';
+    return;
+  }
+  panel.innerHTML = logs.map(l =>
+    `<div class="log-entry"><span style="color:var(--dim)">[${l.time}]</span> <span class="action">${l.action}</span> → <span class="result">${l.result}</span></div>`
+  ).join('');
+}
+
+function switchTab(index) {
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === index));
+  document.querySelectorAll('.tab-content').forEach((c, i) => c.classList.toggle('active', i === index));
+}
+
+function renderWalkthroughs() {
+  WALKTHROUGHS.forEach((wt, wi) => {
+    const container = document.getElementById(`walkthrough${wi}`);
+    if (!container) return;
+    container.innerHTML = wt.steps.map((step, si) => {
+      let numClass = 'step-num';
+      if (si < walkthroughSteps[wi]) numClass += ' done';
+      else if (si === walkthroughSteps[wi]) numClass += ' current';
+      return `<div class="walkthrough-step">
+        <div class="${numClass}">${si + 1}</div>
+        <div class="step-desc">${step.label}</div>
+      </div>`;
+    }).join('');
+  });
+}
+
+function stepWalkthrough(index) {
+  const wt = WALKTHROUGHS[index];
+  const step = walkthroughSteps[index];
+  if (step >= wt.steps.length) return;
+  if (step === 0) {
+    initState(); logs = [];
+    document.getElementById('verdictPanel').classList.remove('visible');
+  }
+  wt.steps[step].action();
+  walkthroughSteps[index]++;
+  renderWalkthroughs();
+}
+
+function resetWalkthrough(index) {
+  walkthroughSteps[index] = 0;
+  initState(); logs = [];
+  document.getElementById('verdictPanel').classList.remove('visible');
+  render(); renderLog(); renderWalkthroughs();
+}
+
+// Init
+render(); renderLog(); renderWalkthroughs();
+</script>
+
+</body>
+</html>

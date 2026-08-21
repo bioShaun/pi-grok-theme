@@ -38,7 +38,7 @@ TokyoNight Accents (#7AA2F7 Blue, #7DCFFF Cyan, #E0AF68 Amber Gold, #9ECE6A Gree
 
 ```text
 ╭─ GROK BUILD ─────────────────────────────────────────────────────────────╮
-│ 📁 my-project  ⎇ main  ·  model: claude-3.7-sonnet  ·  v0.2.0            │
+│ 📁 my-project  ⎇ main  ·  model: claude-3.7-sonnet  ·  v0.3.0            │
 ╰──────────────────────────────────────────────────────────────────────────╯
 
 ✓ read_file src/auth.ts (1.2s)
@@ -56,8 +56,8 @@ TokyoNight Accents (#7AA2F7 Blue, #7DCFFF Cyan, #E0AF68 Amber Gold, #9ECE6A Gree
 
 | Component | Layer | Description |
 |---|---|---|
-| **Phase 1: Native Themes** | Visual Theme | High-contrast `grok-build-coding` and minimalist `grok-build` JSON themes calibrated with official GrokNight palette. |
-| **Phase 2: UI Extension** | Presentation UI | Single-line responsive metadata footer, workspace header banner, and compact working state indicators (`● working (2.4s)`). |
+| **Phase 1: Native Themes** | Visual Theme | High-contrast `grok-build-coding`, minimalist `grok-build`, and clean light `grok-build-day` JSON themes calibrated with official Grok Build palettes. |
+| **Phase 2: UI Extension** | Presentation UI | Single-line responsive metadata footer, workspace header banner, OSC 12 terminal cursor sync (`#E0AF68`), and compact working state indicators (`● working (2.4s)`). |
 | **Phase 3: Workflow Guidelines** | Behavior Standard | Standardized 4-stage **Plan → Search → Build → Verify** interaction rules with zero conversational filler. |
 
 ---
@@ -66,7 +66,7 @@ TokyoNight Accents (#7AA2F7 Blue, #7DCFFF Cyan, #E0AF68 Amber Gold, #9ECE6A Gree
 
 `pi-grok-theme` is packaged as a standard **Pi Extension & Theme Package**.
 
-### Method 1: Standard Pi Plugin Install (Recommended)
+### Install via Pi CLI (Recommended)
 
 Run directly inside your terminal:
 
@@ -82,8 +82,8 @@ cd pi-grok-theme
 pi install . -l
 ```
 
-#### In `~/.pi/agent/settings.json`
-You can also add it to your Pi settings packages list:
+### Or configure in `~/.pi/agent/settings.json`
+Add the package repository to your Pi settings packages list:
 
 ```json
 {
@@ -92,35 +92,6 @@ You can also add it to your Pi settings packages list:
     "https://github.com/bioShaun/pi-grok-theme"
   ]
 }
-```
-
----
-
-### Method 2: Using the One-Click Install Script
-
-```bash
-git clone https://github.com/bioShaun/pi-grok-theme.git
-cd pi-grok-theme
-./scripts/install.sh
-```
-
-To force-overwrite existing files:
-```bash
-./scripts/install.sh --force
-```
-
----
-
-### Method 3: Manual Installation
-
-```bash
-# 1. Install Themes
-mkdir -p ~/.pi/agent/themes
-cp themes/*.json ~/.pi/agent/themes/
-
-# 2. Install UI Extension
-mkdir -p ~/.pi/agent/extensions
-cp -r extension ~/.pi/agent/extensions/pi-grok-build
 ```
 
 ---
@@ -148,8 +119,9 @@ pi --use-theme grok-build-coding
 
 | Theme | Best For | Highlights |
 |---|---|---|
-| **`grok-build-coding`** *(Recommended)* | Daily software development | Rich syntax coloring (keywords in lavender `#BB9AF7`, functions in blue `#7AA2F7`, types in cyan `#7DCFFF`), instant diff distinction (`#9ECE6A` / `#F7768E`), warm amber focus borders. |
-| **`grok-build`** | Maximum monochrome minimalism | Monochromatic white/gray syntax with subtle cyan/blue accents, flat `#141414` tool backgrounds. |
+| **`grok-build-coding`** *(Recommended)* | Daily software development | Rich syntax coloring (keywords in lavender `#BB9AF7`, functions in blue `#7AA2F7`, types in cyan `#7DCFFF`), instant diff distinction (`#9ECE6A` / `#F7768E`), cyan headings, warm amber focus borders. |
+| **`grok-build`** | Maximum monochrome minimalism | Monochromatic white/gray syntax with subtle cyan/blue accents, cyan headings, flat `#141414` tool backgrounds. |
+| **`grok-build-day`** | Daylight & bright environments | Clean neutral gray `#EEEEEE` base, crisp `#1A1A1A` text with darkened TokyoNight accents for daylight coding. |
 
 ---
 
@@ -179,7 +151,8 @@ When terminal width narrows, items recede in strict priority order:
 6. `Project Directory / CWD` (First to hide)
 
 ### Extension Commands
-- `/grok` or `/grok info`: Inspect current workspace, model, and theme status.
+- `/grok` or `/grok info`: Inspect current workspace, model, cursor color, and theme status.
+- `/grok theme` / `/grok theme [coding|dark|day]`: View available themes and quick-switch instructions.
 - `/grok toggle`: Toggle between auto-responsive and always-compact footer modes.
 - `/grok header`: Toggle the workspace header banner on or off (opt-in, disabled by default).
 
@@ -220,22 +193,21 @@ pi-grok-theme
 │
 ├── themes/                    # Phase 1: Native Themes
 │   ├── grok-build-coding.json # GrokNight daily driver theme
-│   └── grok-build.json        # Ultra-minimalist theme
+│   ├── grok-build.json        # Ultra-minimalist dark theme
+│   └── grok-build-day.json    # GrokDay daylight theme
 │
-├── extension/                 # Phase 2: UI Presentation Extension
-│   ├── package.json           # Extension manifest
-│   ├── index.ts               # Extension entrypoint & lifecycle
-│   ├── footer.ts              # Single-line responsive footer renderer
-│   ├── header.ts              # Workspace header banner
-│   └── status.ts              # Working state controller & status tokens
+├── index.ts                   # Phase 2: UI Extension entrypoint & lifecycle
+├── cursor.ts                  # OSC 12 terminal cursor color synchronization
+├── footer.ts                  # Single-line responsive footer renderer
+├── header.ts                  # Workspace header banner
+├── status.ts                  # Working state controller & status tokens
 │
 ├── docs/                      # Documentation & Specs
 │   ├── guidelines.md
-│   └── pi-grok-build-theme.spec.md
-│
-└── scripts/                   # Helper Scripts
-    ├── install.sh             # Installation script
-    └── uninstall.sh           # Uninstallation script
+│   ├── pi-grok-build-theme.spec.md
+│   └── development-notes.md
+└── test/                      # Unit Tests
+    └── test.js
 ```
 
 ---
