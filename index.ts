@@ -24,6 +24,7 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
 
   // Track original setWorkingMessage to intercept gracefully
   let originalSetWorkingMessage: ((message?: string) => void) | undefined;
+  let unwrapSetWorkingMessage: ((message?: string) => void) | undefined;
 
   /**
    * Hook into UI context when session starts or changes
@@ -46,6 +47,7 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
 
       // Intercept setWorkingMessage for concise Grok status tokens
       if (typeof ctx.ui?.setWorkingMessage === "function" && !originalSetWorkingMessage) {
+        unwrapSetWorkingMessage = ctx.ui.setWorkingMessage;
         originalSetWorkingMessage = ctx.ui.setWorkingMessage.bind(ctx.ui);
         ctx.ui.setWorkingMessage = (message?: string) => {
           try {
@@ -72,9 +74,19 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
     }
   });
 
-  pi.on("session_shutdown", (_event, _ctx) => {
+  pi.on("session_shutdown", (_event, ctx) => {
     try {
       statusController.endTurn();
+      if (ctx?.ui && unwrapSetWorkingMessage) {
+        try {
+          originalSetWorkingMessage?.(undefined);
+          ctx.ui.setWorkingMessage = unwrapSetWorkingMessage;
+        } catch {
+          // ignore
+        }
+        originalSetWorkingMessage = undefined;
+        unwrapSetWorkingMessage = undefined;
+      }
       resetCursorColor(); // OSC 112: restore terminal default cursor color
       footerHandle?.dispose();
       footerHandle = null;
@@ -113,6 +125,7 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
     try {
       if (event.message.role === "assistant") {
         statusController.endTurn();
+        originalSetWorkingMessage?.(undefined);
         footerHandle?.requestRender();
       }
     } catch (err) {

@@ -147,7 +147,7 @@ export function renderContextMetric(
   const pct = percent ?? (usedTokens && totalTokens ? (usedTokens / totalTokens) * 100 : 0);
   const pctRounded = Math.round(pct);
 
-  let color = ANSI_COLORS.fgSecondary;
+  let color = ANSI_COLORS.muted;
   if (pctRounded >= 90) color = ANSI_COLORS.red;
   else if (pctRounded >= 75) color = ANSI_COLORS.amber;
 
@@ -182,7 +182,7 @@ export function renderGrokFooter(
   // 2. Active Model Name
   const rawModel = ctx.model?.name || ctx.model?.id || "";
   const modelName = isNarrow ? shortenModelName(rawModel) : rawModel;
-  const modelSegment = modelName ? `${ANSI_COLORS.fg}${modelName}${ANSI_COLORS.reset}` : "";
+  const modelSegment = modelName ? `${ANSI_COLORS.muted}${modelName}${ANSI_COLORS.reset}` : "";
 
   // 3. Git Branch
   const branch = config.showGit ? getGitBranch(ctx.cwd) : undefined;
@@ -221,7 +221,7 @@ export function renderGrokFooter(
   if (extensionStatuses) {
     for (const [key, val] of extensionStatuses.entries()) {
       if (val && key !== "status") {
-        extraStatuses.push(`${ANSI_COLORS.fgSecondary}${val}${ANSI_COLORS.reset}`);
+        extraStatuses.push(`${ANSI_COLORS.muted}${val}${ANSI_COLORS.reset}`);
       }
     }
   }
@@ -279,7 +279,7 @@ export function renderGrokFooter(
 
   if (visibleWidth(fullRow) > width && modelSegment) {
     // Priority 2: Shorten Model
-    const shortModel = `${ANSI_COLORS.fg}${shortenModelName(rawModel)}${ANSI_COLORS.reset}`;
+    const shortModel = `${ANSI_COLORS.muted}${shortenModelName(rawModel)}${ANSI_COLORS.reset}`;
     items = items.map((i) => (i === modelSegment ? shortModel : i));
     fullRow = items.join(sep);
   }

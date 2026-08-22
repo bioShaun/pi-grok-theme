@@ -146,7 +146,7 @@ export class WorkingStateController {
         dot: "○",
         label: "idle",
         rawText: "○ idle",
-        formattedText: `${ANSI_COLORS.dim}○ idle${ANSI_COLORS.reset}`,
+        formattedText: `${ANSI_COLORS.muted}○ idle${ANSI_COLORS.reset}`,
       };
     }
 
@@ -177,7 +177,7 @@ export class WorkingStateController {
     }
 
     const rawText = `● ${label}`;
-    const formattedText = `${dotColor}●${ANSI_COLORS.reset} ${ANSI_COLORS.fgSecondary}${label}${ANSI_COLORS.reset}`;
+    const formattedText = `${dotColor}●${ANSI_COLORS.reset} ${ANSI_COLORS.muted}${label}${ANSI_COLORS.reset}`;
 
     return {
       dot: "●",
@@ -191,32 +191,39 @@ export class WorkingStateController {
   /**
    * Filter and compress verbose working messages from Pi into compact Grok tokens.
    */
-  public filterWorkingMessage(originalMessage?: string, now = Date.now()): string {
+  public filterWorkingMessage(originalMessage?: string, now = Date.now()): string | undefined {
+    // Pass through the host's clear/restore-default contract untouched.
+    if (originalMessage === undefined) return undefined;
+
+    // Do not fabricate a working label while idle.
+    if (this.state === "idle") return originalMessage;
+
     const elapsed = this.getElapsedMs(now);
     const durationStr = formatDuration(elapsed);
+    const trimmed = originalMessage.trim();
 
-    if (!originalMessage) {
+    if (!trimmed) {
       if (this.state === "thinking") return `● thinking (${durationStr})`;
       if (this.state === "running_tool") return `● ${normalizeToolAction(this.currentTool)} (${durationStr})`;
+      if (this.state === "streaming") return `● generating (${durationStr})`;
       return `● working (${durationStr})`;
     }
 
-    const trimmed = originalMessage.trim();
-
     // Check if message is a tool execution announcement
-    if (trimmed.toLowerCase().includes("bash") || trimmed.toLowerCase().includes("executing")) {
+    const lower = trimmed.toLowerCase();
+    if (lower.includes("bash") || lower.includes("executing")) {
       return `● running bash (${durationStr})`;
     }
-    if (trimmed.toLowerCase().includes("edit") || trimmed.toLowerCase().includes("writing")) {
+    if (lower.includes("edit") || lower.includes("writing")) {
       return `● editing file (${durationStr})`;
     }
-    if (trimmed.toLowerCase().includes("read") || trimmed.toLowerCase().includes("inspect")) {
+    if (lower.includes("read") || lower.includes("inspect")) {
       return `● reading file (${durationStr})`;
     }
-    if (trimmed.toLowerCase().includes("search") || trimmed.toLowerCase().includes("grep")) {
+    if (lower.includes("search") || lower.includes("grep")) {
       return `● searching (${durationStr})`;
     }
-    if (trimmed.toLowerCase().includes("think")) {
+    if (lower.includes("think")) {
       return `● thinking (${durationStr})`;
     }
 

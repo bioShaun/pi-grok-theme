@@ -188,10 +188,24 @@ Grok Build 官方源码中的 `COMMENT` 色 (`#565F89`) 在其 `#1A1B26` 底色�
 - 在 Pi 核心 `interactive-mode.js`（`getCompactExtensionLabels`）中，当扩展入口位于子目录（如 `./extension/index.ts`）时，Pi 剔除文件名后会取最后一级父目录名（`extension`）作为显示标识。
 - 只有当 `index.ts` 位于根目录，声明为 `"pi": { "extensions": ["./index.ts"] }` 时，Pi 才会直接将其映射为完整的包名（`pi-grok-theme`）。
 
+---
+
+### 坑 8：`setWorkingMessage` 拦截器未遵守 `undefined` 清除语义导致残留 `● working (0.0s)`
+
+> ⚠️ Pi 的 Host API 约定：`setWorkingMessage(undefined)` 代表清除自定义消息并恢复默认状态（如 `Working...`）。
+
+**现象**：
+- 即使未运行任何耗时任务或仅运行 `/work help` 等即时命令，输出区域常驻 `⠏ ● working (0.0s)` 且永远不消失。
+
+**根因**：
+1. `status.ts` 中的 `filterWorkingMessage()` 原先使用 `if (!originalMessage)` 分支，把 `undefined`（清除信号）误判为缺省参数，进而在 `idle` 状态下计算出 `● working (0.0s)` 并返回。
+2. 全局拦截器在任何插件调用 `setWorkingMessage(undefined)`（如 `finally` 清理逻辑）时，将 `undefined` 替换为静态生成的 `● working (0.0s)` 字符串传给 Host。Host 存储后导致其持续残留显示。
+3. `idle` 状态未透传原始消息，导致空闲期被伪造工作态。
+
 **解决**：
-- 将扩展入口及相关模块扁平化到项目根目录（`index.ts`、`cursor.ts`、`footer.ts`、`header.ts`、`status.ts`）。
-- 更新 `package.json` 中的 `main`、`exports` 与 `pi.extensions` 为 `"./index.ts"`。
-- 同步更新单测与全局安装目录。
+- `filterWorkingMessage(originalMessage?: string)` 在 `originalMessage === undefined` 时严格返回 `undefined`，保留宿主清除语义。
+- 在 `this.state === "idle"` 时原样返回 `originalMessage`，不虚构 working 标签。
+- `index.ts` 在 `message_end` 和 `session_shutdown` 时主动派发 `setWorkingMessage(undefined)` 保证彻底清理，并在 `session_shutdown` 恢复原始 `ctx.ui.setWorkingMessage` 引用。
 
 ---
 

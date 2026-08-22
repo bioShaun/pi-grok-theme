@@ -67,6 +67,116 @@ test("WorkingStateController lifecycle", () => {
   assert.equal(ctrl.getState(), "idle");
 });
 
+test("WorkingStateController filterWorkingMessage clear semantics & idle pass-through", () => {
+  const ctrl = new WorkingStateController();
+
+  // 1. undefined must return undefined across all lifecycle states (Defect B fix)
+  assert.equal(ctrl.getState(), "idle");
+  assert.equal(ctrl.filterWorkingMessage(undefined), undefined);
+
+  ctrl.startTurn();
+  assert.equal(ctrl.getState(), "thinking");
+  assert.equal(ctrl.filterWorkingMessage(undefined), undefined);
+
+  ctrl.startStreaming();
+  assert.equal(ctrl.getState(), "streaming");
+  assert.equal(ctrl.filterWorkingMessage(undefined), undefined);
+
+  ctrl.startTool("bash");
+  assert.equal(ctrl.getState(), "running_tool");
+  assert.equal(ctrl.filterWorkingMessage(undefined), undefined);
+
+  ctrl.endTool();
+  assert.equal(ctrl.getState(), "working");
+  assert.equal(ctrl.filterWorkingMessage(undefined), undefined);
+
+  ctrl.endTurn();
+  assert.equal(ctrl.getState(), "idle");
+  assert.equal(ctrl.filterWorkingMessage(undefined), undefined);
+
+  // 2. Idle state passes through original message without fabricating working badge
+  assert.equal(ctrl.filterWorkingMessage("some breadcrumb"), "some breadcrumb");
+  assert.equal(ctrl.filterWorkingMessage("[agent] action · tool · 0.0s"), "[agent] action · tool · 0.0s");
+
+  // 3. Active turn formats messages into Grok tokens
+  ctrl.startTurn();
+  assert.ok(ctrl.filterWorkingMessage("Executing bash command").includes("running bash"));
+  assert.ok(ctrl.filterWorkingMessage("Writing code to file").includes("editing file"));
+  assert.ok(ctrl.filterWorkingMessage("Reading file README.md").includes("reading file"));
+  assert.ok(ctrl.filterWorkingMessage("Searching codebase").includes("searching"));
+  assert.ok(ctrl.filterWorkingMessage("Thinking about architecture").includes("thinking"));
+  assert.ok(ctrl.filterWorkingMessage("Custom status message").includes("Custom status message"));
+  assert.ok(ctrl.filterWorkingMessage("").includes("thinking"));
+
+  ctrl.endTurn();
+});
+
+test("setWorkingMessage interceptor & lifecycle cleanup", () => {
+  let receivedMessages = [];
+  const originalSetWorkingMessage = (msg) => {
+    receivedMessages.push(msg);
+  };
+
+  const fakeCtx = {
+    hasUI: true,
+    mode: "tui",
+    cwd: process.cwd(),
+    ui: {
+      setHeader: () => {},
+      setFooter: () => {},
+      setWorkingMessage: originalSetWorkingMessage,
+      notify: () => {},
+    },
+  };
+
+  const listeners = {};
+  const fakePi = {
+    on: (evt, handler) => {
+      listeners[evt] = handler;
+    },
+    registerCommand: () => {},
+  };
+
+  registerGrokBuildExtension(fakePi);
+
+  // session_start installs interceptor
+  listeners.session_start({}, fakeCtx);
+  assert.notEqual(fakeCtx.ui.setWorkingMessage, originalSetWorkingMessage, "interceptor should wrap setWorkingMessage");
+
+  // Call setWorkingMessage(undefined) while idle -> must pass undefined through
+  receivedMessages = [];
+  fakeCtx.ui.setWorkingMessage(undefined);
+  assert.deepEqual(receivedMessages, [undefined], "setWorkingMessage(undefined) must pass undefined untouched");
+
+  // Call setWorkingMessage('custom') while idle -> passes through as-is
+  receivedMessages = [];
+  fakeCtx.ui.setWorkingMessage("custom status");
+  assert.deepEqual(receivedMessages, ["custom status"]);
+
+  // Start turn
+  listeners.message_start({ message: { role: "assistant" } }, fakeCtx);
+
+  // During turn: setWorkingMessage('running bash') -> filtered into Grok token
+  receivedMessages = [];
+  fakeCtx.ui.setWorkingMessage("running bash command");
+  assert.equal(receivedMessages.length, 1);
+  assert.ok(receivedMessages[0].includes("running bash"));
+
+  // During turn: setWorkingMessage(undefined) -> passes undefined through
+  receivedMessages = [];
+  fakeCtx.ui.setWorkingMessage(undefined);
+  assert.deepEqual(receivedMessages, [undefined]);
+
+  // Turn ends via message_end -> clears working message with undefined
+  receivedMessages = [];
+  listeners.message_end({ message: { role: "assistant" } }, fakeCtx);
+  assert.deepEqual(receivedMessages, [undefined], "message_end should clear working message");
+
+  // session_shutdown cleans up and restores original setWorkingMessage
+  listeners.session_shutdown({}, fakeCtx);
+  assert.equal(fakeCtx.ui.setWorkingMessage, originalSetWorkingMessage, "session_shutdown should restore original setWorkingMessage");
+});
+
 test("Header & Footer Component render interface and /grok commands", () => {
   let headerFactory = null;
   let footerFactory = null;
