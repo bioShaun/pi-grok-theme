@@ -2,7 +2,7 @@
  * footer.ts — Single-line Grok-style metadata footer renderer for pi-grok-build
  *
  * Spec: Section 5.2 Custom Footer Specification
- * - Wide layout:  ~/my-project  main · claude-3.7-sonnet · 48k/200k (24%) · thinking:high · ● working (3.1s)
+ * - Wide layout:  ~/my-project  main · claude-3.7-sonnet · 48k/200k (24%) · ✻ high · ● working (3.1s)
  * - Narrow layout: main · sonnet-3.7 · 24% · ● working
  * - Responsive item dropping hierarchy
  * - Multi-accent TokyoNight/GrokNight palette
@@ -211,7 +211,7 @@ export function renderGrokFooter(
   const showThinkingSegment =
     config.showThinking && thinkingLevel && thinkingLevel !== "off" && !isNarrow;
   const thinkingSegment = showThinkingSegment
-    ? `${ANSI_COLORS.muted}thinking:${thinkingLevel}${ANSI_COLORS.reset}`
+    ? `${ANSI_COLORS.muted}✻ ${thinkingLevel}${ANSI_COLORS.reset}`
     : "";
 
   // 6. Project Directory / CWD (First to hide on narrow screens)

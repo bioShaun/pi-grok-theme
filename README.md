@@ -47,7 +47,7 @@ TokyoNight Accents (#7AA2F7 Blue, #7DCFFF Cyan, #E0AF68 Amber Gold, #9ECE6A Gree
 ● thinking (1.4s)
 
 ────────────────────────────────────────────────────────────────────────────
-~/my-project  main · claude-3.7-sonnet · 48k/200k (24%) · thinking:high · ● working (3.1s)
+~/my-project  main · claude-3.7-sonnet · 48k/200k (24%) · ✻ high · ● working (3.1s)
 ```
 
 ---
@@ -133,7 +133,7 @@ The Phase 2 presentation extension provides a single-line, responsive statusline
 
 - **Standard / Wide Screen (≥ 80 columns):**
   ```text
-  ~/my-project  main · claude-3.7-sonnet · 48k/200k (24%) · thinking:high · ● working (3.1s)
+  ~/my-project  main · claude-3.7-sonnet · 48k/200k (24%) · ✻ high · ● working (3.1s)
   ```
 
 - **Narrow Screen (< 80 columns):**

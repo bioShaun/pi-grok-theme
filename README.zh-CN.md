@@ -47,7 +47,7 @@ TokyoNight 语义点缀 (#7AA2F7 蓝, #7DCFFF 青, #E0AF68 琥珀金, #9ECE6A �
 ● thinking (1.4s)
 
 ────────────────────────────────────────────────────────────────────────────
-~/my-project  main · claude-3.7-sonnet · 48k/200k (24%) · thinking:high · ● working (3.1s)
+~/my-project  main · claude-3.7-sonnet · 48k/200k (24%) · ✻ high · ● working (3.1s)
 ```
 
 ---
@@ -133,7 +133,7 @@ Phase 2 提供的 UI 扩展实现完全还原 Grok Build 的紧凑单行状态�
 
 - **标准/宽屏模式（≥ 80 列宽度）：**
   ```text
-  ~/my-project  main · claude-3.7-sonnet · 48k/200k (24%) · thinking:high · ● working (3.1s)
+  ~/my-project  main · claude-3.7-sonnet · 48k/200k (24%) · ✻ high · ● working (3.1s)
   ```
 
 - **窄屏模式（< 80 列宽度）：**
