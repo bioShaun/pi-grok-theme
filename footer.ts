@@ -200,8 +200,11 @@ export function renderGrokFooter(
   // 5. Thinking Level
   let thinkingLevel: string | undefined;
   try {
-    const extApi = (ctx as unknown as { api?: { getThinkingLevel?: () => string } }).api;
-    thinkingLevel = extApi?.getThinkingLevel?.();
+    const direct = ctx as unknown as {
+      getThinkingLevel?: () => string;
+      thinkingLevel?: string;
+    };
+    thinkingLevel = direct.getThinkingLevel?.() ?? direct.thinkingLevel ?? undefined;
   } catch {
     // Optional
   }

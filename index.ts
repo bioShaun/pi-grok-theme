@@ -15,8 +15,16 @@ import { installHeader } from "./header.ts";
 import { WorkingStateController, ANSI_COLORS } from "./status.ts";
 import { setCursorColor, resetCursorColor } from "./cursor.ts";
 
-export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
-  const statusController = new WorkingStateController();
+function readThinkingLevel(ctx: ExtensionContext): string | undefined {
+  try {
+    const direct = ctx as unknown as { getThinkingLevel?: () => string; thinkingLevel?: string };
+    return direct.getThinkingLevel?.() ?? direct.thinkingLevel ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export default function registerGrokBuildExtension(pi: ExtensionAPI): void {  const statusController = new WorkingStateController();
   let footerHandle: { dispose: () => void; requestRender: () => void } | null = null;
   let headerHandle: { dispose: () => void } | undefined;
   let showHeader = false;
@@ -133,6 +141,15 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
     }
   });
 
+  // Thinking Level changes (e.g. /thinking command)
+  pi.on("thinking_level_select", (_event, _ctx) => {
+    try {
+      footerHandle?.requestRender();
+    } catch (err) {
+      console.error("[pi-grok-build] thinking_level_select error:", err);
+    }
+  });
+
   // Tool Execution Lifecycle
   pi.on("tool_start", (event, _ctx) => {
     try {
@@ -167,6 +184,7 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
           `${ANSI_COLORS.muted}Status:${ANSI_COLORS.reset} ${badge.formattedText}`,
           `${ANSI_COLORS.muted}Workspace:${ANSI_COLORS.reset} ${ctx.cwd}`,
           `${ANSI_COLORS.muted}Model:${ANSI_COLORS.reset} ${ctx.model?.name || ctx.model?.id || "default"}`,
+          `${ANSI_COLORS.muted}Thinking:${ANSI_COLORS.reset} ${readThinkingLevel(ctx) ?? "off"}`,
         ].join("\n");
 
         if (ctx.hasUI && typeof ctx.ui?.notify === "function") {
