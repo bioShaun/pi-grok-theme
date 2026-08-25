@@ -360,7 +360,7 @@ extension/
 
 ### Target Layout (Standard Terminal Width)
 ```text
-~/my-project  main · claude-3.7-sonnet · 48k/200k (24%) · thinking:high · ● working (3.1s)
+~/my-project  main · claude-3.7-sonnet · 48k/200k (24%) · ✻ high · ● working (3.1s)
 ```
 
 ### Collapsed Layout (Narrow Terminal Width < 80 cols)
