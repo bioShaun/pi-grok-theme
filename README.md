@@ -212,6 +212,13 @@ pi-grok-theme
 
 ---
 
+## ⚠️ Known Limitations
+
+- **Prompt arrow (`❯`) cannot be themed.** Replacing it requires swapping the entire editor via `ctx.ui.setEditorComponent`, which is far out of scope for a theme extension.
+- **Window title may be overwritten by Pi core.** The grok-style title (`⚡ grok · <dir> · <branch>`) is applied on `session_start`, but Pi core re-applies its own title when a session is renamed or switched (`updateTerminalTitle()`). The grok title returns on the next session start.
+
+---
+
 ## 📄 License
 
 MIT © [earendil-works](https://github.com/earendil-works)

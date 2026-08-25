@@ -128,7 +128,33 @@ export function shortenModelName(modelId: string): string {
   if (name.includes("qwen3.8-27b") || name.includes("qwen3.8")) return "qwen-3.8";
   if (name.includes("qwen") && name.includes("27b")) return "qwen-27b";
   if (name.includes("glm-5")) return "glm-5";
-  if (name.includes("k3-256k") || name.includes("kimi")) return "kimi-k3";
+  // NOTE: narrowed from `name.includes("kimi")` so kimi-k2 can map separately below.
+  if (name.includes("k3-256k") || name.includes("kimi-k3")) return "kimi-k3";
+
+  // Extended mappings (R1): more specific patterns must precede their prefixes.
+  if (name.includes("gpt-4.1-mini")) return "gpt-4.1-mini";
+  if (name.includes("gpt-4.1-nano")) return "gpt-4.1-nano";
+  if (name.includes("gpt-4.1")) return "gpt-4.1";
+  if (name.includes("gpt-5-mini")) return "gpt-5-mini";
+  if (name.includes("gpt-5-nano")) return "gpt-5-nano";
+  if (name.includes("gpt-5")) return "gpt-5";
+  if (name.includes("claude-opus-4")) return "opus-4";
+  if (name.includes("claude-sonnet-4")) return "sonnet-4";
+  if (name.includes("claude-haiku-4")) return "haiku-4";
+  if (name.includes("o1-mini")) return "o1-mini";
+  if (name.includes("o1-pro")) return "o1-pro";
+  if (name.includes("o1")) return "o1";
+  if (name.includes("o3-mini")) return "o3-mini";
+  if (name.includes("o3")) return "o3";
+  if (name.includes("o4-mini")) return "o4-mini";
+  if (name.includes("gemini-2.0-flash")) return "gem-2-flash";
+  if (name.includes("gemini-2.5-pro")) return "gem-2.5-pro";
+  if (name.includes("deepseek-v3")) return "deepseek-v3";
+  if (name.includes("deepseek-r1")) return "deepseek-r1";
+  if (name.includes("qwen3-coder")) return "qwen3-coder";
+  if (name.includes("qwen3-max")) return "qwen3-max";
+  if (name.includes("kimi-k2")) return "kimi-k2";
+  if (name.includes("minimax")) return "minimax";
 
   // Remove common vendor prefixes if present
   const parts = modelId.split("/");

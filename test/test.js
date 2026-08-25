@@ -4,9 +4,10 @@ import fs from "node:fs";
 import path from "node:path";
 import registerGrokBuildExtension from "../index.ts";
 import { renderHeader } from "../header.ts";
-import { renderGrokFooter, visibleWidth, truncateToWidth } from "../footer.ts";
+import { renderGrokFooter, visibleWidth, truncateToWidth, shortenModelName, DEFAULT_FOOTER_CONFIG } from "../footer.ts";
 import { WorkingStateController } from "../status.ts";
 import { hexToOsc12, setCursorColor, resetCursorColor } from "../cursor.ts";
+import { TpsTracker, TPS_STATUS_KEY } from "../tps.ts";
 
 test("Theme JSON validation - all 3 themes", () => {
   const codingTheme = JSON.parse(fs.readFileSync(path.resolve("themes/grok-build-coding.json"), "utf8"));
@@ -262,4 +263,254 @@ test("Header & Footer Component render interface and /grok commands", () => {
 
   // session_shutdown cleans up
   assert.doesNotThrow(() => listeners.session_shutdown({}, fakeCtx));
+});
+
+test("session_start shell chrome: setTitle + setHiddenThinkingLabel", () => {
+  const titleCalls = [];
+  const labelCalls = [];
+
+  const fakeCtx = {
+    hasUI: true,
+    mode: "tui",
+    cwd: "/home/user/my-project",
+    model: { name: "claude-3.7-sonnet", id: "anthropic/claude-3.7-sonnet", contextWindow: 200000 },
+    getContextUsage: () => undefined,
+    ui: {
+      setHeader: () => {},
+      setFooter: () => {},
+      setWorkingMessage: () => {},
+      notify: () => {},
+      setTitle: (t) => titleCalls.push(t),
+      setHiddenThinkingLabel: (l) => labelCalls.push(l),
+    },
+  };
+
+  const listeners = {};
+  const fakePi = {
+    on: (evt, handler) => {
+      listeners[evt] = handler;
+    },
+    registerCommand: () => {},
+  };
+
+  registerGrokBuildExtension(fakePi);
+  listeners.session_start({}, fakeCtx);
+
+  // Title: called exactly once, grok format with ⚡ and cwd basename
+  assert.equal(titleCalls.length, 1, "setTitle should be called exactly once on session_start");
+  assert.ok(titleCalls[0].includes("⚡"), "title should contain the ⚡ glyph");
+  assert.ok(titleCalls[0].includes("my-project"), "title should contain the cwd basename");
+
+  // Hidden thinking label: called exactly once, compact, single-line, no ANSI
+  assert.equal(labelCalls.length, 1, "setHiddenThinkingLabel should be called exactly once on session_start");
+  assert.ok(visibleWidth(labelCalls[0]) <= 16, "label must be ≤16 visible width");
+  assert.ok(!labelCalls[0].includes("\x1b"), "label must not contain ANSI escapes");
+  assert.ok(!labelCalls[0].includes("\n"), "label must be single-line");
+
+  // Shutdown must not throw and must not reset title/label (core owns them)
+  assert.doesNotThrow(() => listeners.session_shutdown({}, fakeCtx));
+  assert.equal(titleCalls.length, 1, "session_shutdown must not touch the title");
+  assert.equal(labelCalls.length, 1, "session_shutdown must not touch the thinking label");
+});
+
+test("shortenModelName extended mappings (R1)", () => {
+  assert.equal(shortenModelName("gpt-4.1-mini"), "gpt-4.1-mini");
+  assert.equal(shortenModelName("gpt-4.1-nano"), "gpt-4.1-nano");
+  assert.equal(shortenModelName("gpt-4.1"), "gpt-4.1");
+  assert.equal(shortenModelName("openai/gpt-5"), "gpt-5");
+  assert.equal(shortenModelName("gpt-5-mini"), "gpt-5-mini");
+  assert.equal(shortenModelName("gpt-5-nano"), "gpt-5-nano");
+  assert.equal(shortenModelName("anthropic/claude-opus-4"), "opus-4");
+  assert.equal(shortenModelName("claude-sonnet-4-20250514"), "sonnet-4");
+  assert.equal(shortenModelName("claude-haiku-4"), "haiku-4");
+  assert.equal(shortenModelName("o1"), "o1");
+  assert.equal(shortenModelName("o1-mini"), "o1-mini");
+  assert.equal(shortenModelName("o1-pro"), "o1-pro");
+  assert.equal(shortenModelName("o3"), "o3");
+  assert.equal(shortenModelName("o3-mini"), "o3-mini");
+  assert.equal(shortenModelName("o4-mini"), "o4-mini");
+  assert.equal(shortenModelName("gemini-2.0-flash"), "gem-2-flash");
+  assert.equal(shortenModelName("gemini-2.5-pro"), "gem-2.5-pro");
+  assert.equal(shortenModelName("deepseek-v3"), "deepseek-v3");
+  assert.equal(shortenModelName("deepseek-r1"), "deepseek-r1");
+  assert.equal(shortenModelName("qwen3-coder"), "qwen3-coder");
+  assert.equal(shortenModelName("qwen3-max"), "qwen3-max");
+  assert.equal(shortenModelName("kimi-k2"), "kimi-k2");
+  assert.equal(shortenModelName("minimax-text-01"), "minimax");
+
+  // All short names obey the ≤12 char rule
+  const samples = [
+    "gpt-4.1-mini", "gpt-5-nano", "claude-opus-4", "o3-mini",
+    "gemini-2.5-pro", "deepseek-r1", "qwen3-coder", "kimi-k2",
+  ];
+  for (const s of samples) {
+    assert.ok(shortenModelName(s).length <= 12, `short name for ${s} exceeds 12 chars`);
+  }
+
+  // Unknown model IDs keep the fallback: last path segment, no crash
+  assert.equal(shortenModelName("somevendor/unknown-model-x"), "unknown-model-x");
+  assert.equal(shortenModelName("plain-unknown-id"), "plain-unknown-id");
+
+  // Existing mappings must not regress
+  assert.equal(shortenModelName("claude-3.7-sonnet"), "sonnet-3.7");
+  assert.equal(shortenModelName("gpt-5.6"), "gpt-5.6");
+  assert.equal(shortenModelName("kimi-k3-256k"), "kimi-k3");
+});
+
+test("TpsTracker deterministic math & hide conditions (R2)", () => {
+  const tracker = new TpsTracker();
+
+  // 1. Deterministic window math: 100 tokens over 1.0s -> 100 tok/s
+  tracker.onAssistantMessageStart(1000);
+  assert.equal(tracker.onAssistantMessageEnd(2000, 100), "↑ 100 tok/s");
+
+  // 2. Hide: short turn (0.2s < 0.5s threshold)
+  tracker.onAssistantMessageStart(1000);
+  assert.equal(tracker.onAssistantMessageEnd(1200, 100), undefined);
+
+  // 3. Hide: zero output tokens
+  tracker.onAssistantMessageStart(1000);
+  assert.equal(tracker.onAssistantMessageEnd(3000, 0), undefined);
+
+  // 4. Hide: missing usage (null and undefined)
+  tracker.onAssistantMessageStart(1000);
+  assert.equal(tracker.onAssistantMessageEnd(3000, null), undefined);
+  tracker.onAssistantMessageStart(1000);
+  assert.equal(tracker.onAssistantMessageEnd(3000, undefined), undefined);
+
+  // Defensive: end without start, negative duration, NaN-ish inputs
+  const orphan = new TpsTracker();
+  assert.equal(orphan.onAssistantMessageEnd(3000, 100), undefined);
+  const backwards = new TpsTracker();
+  backwards.onAssistantMessageStart(3000);
+  assert.equal(backwards.onAssistantMessageEnd(1000, 100), undefined);
+
+  // Rounding: 100 tokens over 3.0s -> 33.33 -> "↑ 33 tok/s"
+  const r = new TpsTracker();
+  r.onAssistantMessageStart(0);
+  assert.equal(r.onAssistantMessageEnd(3000, 100), "↑ 33 tok/s");
+});
+
+test("grok-tps wiring: setStatus sequence across turns (R2)", () => {
+  const statusCalls = [];
+
+  const fakeCtx = {
+    hasUI: true,
+    mode: "tui",
+    cwd: process.cwd(),
+    model: { name: "claude-3.7-sonnet", id: "anthropic/claude-3.7-sonnet", contextWindow: 200000 },
+    getContextUsage: () => undefined,
+    ui: {
+      setHeader: () => {},
+      setFooter: () => {},
+      setWorkingMessage: () => {},
+      notify: () => {},
+      setTitle: () => {},
+      setHiddenThinkingLabel: () => {},
+      setStatus: (key, val) => statusCalls.push([key, val]),
+    },
+  };
+
+  const listeners = {};
+  const fakePi = {
+    on: (evt, handler) => {
+      listeners[evt] = handler;
+    },
+    registerCommand: () => {},
+  };
+
+  registerGrokBuildExtension(fakePi);
+  listeners.session_start({}, fakeCtx);
+
+  const tpsCalls = () => statusCalls.filter(([k]) => k === TPS_STATUS_KEY);
+
+  // 5a. Turn 1 start -> clear (stale value removed)
+  listeners.message_start({ message: { role: "assistant", timestamp: 1000 } }, fakeCtx);
+  assert.deepEqual(tpsCalls(), [[TPS_STATUS_KEY, undefined]], "first message_start must clear the slot");
+
+  // Turn 1 end -> write measured value (100 tokens / 2.0s = 50 tok/s)
+  listeners.message_end(
+    { message: { role: "assistant", timestamp: 3000, usage: { output: 100 } } },
+    fakeCtx,
+  );
+  assert.deepEqual(
+    tpsCalls(),
+    [[TPS_STATUS_KEY, undefined], [TPS_STATUS_KEY, "↑ 50 tok/s"]],
+    "message_end must emit the measured turn-average rate",
+  );
+
+  // 5b. Turn 2 start -> clear again (previous value must not ride into the new turn)
+  listeners.message_start({ message: { role: "assistant", timestamp: 10000 } }, fakeCtx);
+  assert.equal(tpsCalls().at(-1)[1], undefined, "second message_start must clear again");
+
+  // Turn 2 end -> write the new measured value (200 tokens / 2.0s = 100 tok/s)
+  listeners.message_end(
+    { message: { role: "assistant", timestamp: 12000, usage: { output: 200 } } },
+    fakeCtx,
+  );
+  assert.equal(tpsCalls().at(-1)[1], "↑ 100 tok/s");
+
+  // 6. Non-assistant messages must not touch the slot
+  const before = tpsCalls().length;
+  listeners.message_start({ message: { role: "user", timestamp: 20000 } }, fakeCtx);
+  listeners.message_end({ message: { role: "user", timestamp: 20001 } }, fakeCtx);
+  assert.equal(tpsCalls().length, before, "user messages must not trigger grok-tps");
+
+  // Hide-condition through the wiring: zero-output turn emits nothing new
+  listeners.message_start({ message: { role: "assistant", timestamp: 30000 } }, fakeCtx);
+  listeners.message_end(
+    { message: { role: "assistant", timestamp: 32000, usage: { output: 0 } } },
+    fakeCtx,
+  );
+  assert.equal(tpsCalls().at(-1)[1], undefined, "zero-output turn must leave the slot cleared");
+
+  // session_shutdown clears the slot and does not throw
+  assert.doesNotThrow(() => listeners.session_shutdown({}, fakeCtx));
+  assert.equal(tpsCalls().at(-1)[1], undefined, "session_shutdown must clear grok-tps");
+});
+
+test("footer width regression with grok-tps status (R2.5)", () => {
+  // Same fake ctx shape as the existing footer test (field richness aligned).
+  const ctx = {
+    hasUI: true,
+    mode: "tui",
+    cwd: process.cwd(), // inside the repo, so getGitBranch finds a real branch
+    model: { name: "claude-3.7-sonnet", id: "anthropic/claude-3.7-sonnet", contextWindow: 200000 },
+    getContextUsage: () => ({ usedTokens: 48000, contextWindow: 200000, percent: 24 }),
+  };
+  const statusController = new WorkingStateController(); // idle -> "○ idle" badge
+  const extensionStatuses = new Map([["grok-tps", "↑ 50 tok/s"]]);
+
+  const widths = [40, 50, 60, 70, 80, 100, 120];
+  const rows = new Map();
+
+  for (const width of widths) {
+    let lines;
+    assert.doesNotThrow(() => {
+      lines = renderGrokFooter(ctx, statusController, width, extensionStatuses, DEFAULT_FOOTER_CONFIG);
+    }, `width=${width} must not throw`);
+    rows.set(width, lines[0]);
+
+    assert.equal(lines.length, 1, `width=${width} footer must stay single-line`);
+    assert.ok(
+      visibleWidth(lines[0]) <= width,
+      `width=${width} actual=${visibleWidth(lines[0])} exceeds budget`,
+    );
+    assert.notEqual(lines[0].trim(), "", `width=${width} footer must not be empty`);
+  }
+
+  // Narrow (50): at least one core field survives — branch glyph, short model, or status dot
+  const narrow = rows.get(50);
+  assert.ok(
+    narrow.includes("⎇") || narrow.includes("sonnet") || narrow.includes("●") || narrow.includes("○"),
+    `width=50 must keep at least one core field, got: ${JSON.stringify(narrow)}`,
+  );
+
+  // Wide (120): completeness smoke — branch glyph AND status dot both present
+  const wide = rows.get(120);
+  assert.ok(wide.includes("⎇"), `width=120 must include branch glyph, got: ${JSON.stringify(wide)}`);
+  assert.ok(
+    wide.includes("●") || wide.includes("○"),
+    `width=120 must include status indicator, got: ${JSON.stringify(wide)}`,
+  );
 });

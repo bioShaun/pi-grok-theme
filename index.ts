@@ -9,14 +9,17 @@
  * - 100% crash resistance and graceful fallback
  */
 
+import * as path from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { installFooter, type FooterConfig, DEFAULT_FOOTER_CONFIG } from "./footer.ts";
+import { installFooter, getGitBranch, type FooterConfig, DEFAULT_FOOTER_CONFIG } from "./footer.ts";
 import { installHeader } from "./header.ts";
 import { WorkingStateController, ANSI_COLORS } from "./status.ts";
 import { setCursorColor, resetCursorColor } from "./cursor.ts";
+import { TpsTracker, TPS_STATUS_KEY } from "./tps.ts";
 
 export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
   const statusController = new WorkingStateController();
+  const tpsTracker = new TpsTracker();
   let footerHandle: { dispose: () => void; requestRender: () => void } | null = null;
   let headerHandle: { dispose: () => void } | undefined;
   let showHeader = false;
@@ -69,6 +72,20 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
       statusController.endTurn();
       setCursorColor(); // OSC 12: set terminal cursor to Grok amber (#E0AF68)
       setupUi(ctx);
+
+      // Shell chrome: grok-style window title + compact hidden-thinking label.
+      // Applied once here; core's updateTerminalTitle() may overwrite the title on
+      // session rename/switch (known limitation, see README). Never reset on
+      // shutdown — core owns the title after us.
+      if (ctx.hasUI && ctx.ui) {
+        if (typeof ctx.ui.setTitle === "function") {
+          const branch = getGitBranch(ctx.cwd) ?? "no-git";
+          ctx.ui.setTitle(`⚡ grok · ${path.basename(ctx.cwd)} · ${branch}`);
+        }
+        if (typeof ctx.ui.setHiddenThinkingLabel === "function") {
+          ctx.ui.setHiddenThinkingLabel("▸ thought");
+        }
+      }
     } catch (err) {
       console.error("[pi-grok-build] session_start error:", err);
     }
@@ -88,6 +105,10 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
         unwrapSetWorkingMessage = undefined;
       }
       resetCursorColor(); // OSC 112: restore terminal default cursor color
+      // R2: do not leave a stale tok/s value behind on shutdown
+      if (ctx?.ui && typeof ctx.ui.setStatus === "function") {
+        tpsTracker.clearNow(ctx.ui);
+      }
       footerHandle?.dispose();
       footerHandle = null;
       headerHandle?.dispose();
@@ -103,6 +124,11 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
       if (event.message.role === "assistant") {
         statusController.startTurn();
         statusController.startThinking();
+        // R2: new turn starts — clear any stale tok/s from the previous turn
+        tpsTracker.onAssistantMessageStart(event.message.timestamp);
+        if (ctx.hasUI && typeof ctx.ui?.setStatus === "function") {
+          tpsTracker.clearNow(ctx.ui);
+        }
         footerHandle?.requestRender();
       }
     } catch (err) {
@@ -121,11 +147,21 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
     }
   });
 
-  pi.on("message_end", (event, _ctx) => {
+  pi.on("message_end", (event, ctx) => {
     try {
       if (event.message.role === "assistant") {
         statusController.endTurn();
         originalSetWorkingMessage?.(undefined);
+        // R2: message_end carries the final AssistantMessage (usage + timestamp are
+        // complete, not partial — verified in pi-ai types.d.ts:306,316). Emit the
+        // honest turn-average tok/s into the footer extraStatuses slot.
+        const tpsText = tpsTracker.onAssistantMessageEnd(
+          event.message.timestamp,
+          event.message.usage?.output,
+        );
+        if (tpsText && ctx.hasUI && typeof ctx.ui?.setStatus === "function") {
+          ctx.ui.setStatus(TPS_STATUS_KEY, tpsText);
+        }
         footerHandle?.requestRender();
       }
     } catch (err) {
