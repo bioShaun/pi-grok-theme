@@ -15,7 +15,6 @@ import { installFooter, getGitBranch, type FooterConfig, DEFAULT_FOOTER_CONFIG }
 import { installHeader } from "./header.ts";
 import { WorkingStateController, ANSI_COLORS } from "./status.ts";
 import { setCursorColor, resetCursorColor } from "./cursor.ts";
-import { TpsTracker, TPS_STATUS_KEY } from "./tps.ts";
 
 function readThinkingLevel(ctx: ExtensionContext): string | undefined {
   try {
@@ -28,7 +27,6 @@ function readThinkingLevel(ctx: ExtensionContext): string | undefined {
 
 export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
   const statusController = new WorkingStateController();
-  const tpsTracker = new TpsTracker();
   let footerHandle: { dispose: () => void; requestRender: () => void } | null = null;
   let headerHandle: { dispose: () => void } | undefined;
   let showHeader = false;
@@ -114,10 +112,6 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
         unwrapSetWorkingMessage = undefined;
       }
       resetCursorColor(); // OSC 112: restore terminal default cursor color
-      // R2: do not leave a stale tok/s value behind on shutdown
-      if (ctx?.ui && typeof ctx.ui.setStatus === "function") {
-        tpsTracker.clearNow(ctx.ui);
-      }
       footerHandle?.dispose();
       footerHandle = null;
       headerHandle?.dispose();
@@ -133,11 +127,6 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
       if (event.message.role === "assistant") {
         statusController.startTurn();
         statusController.startThinking();
-        // R2: new turn starts — clear any stale tok/s from the previous turn
-        tpsTracker.onAssistantMessageStart(event.message.timestamp);
-        if (ctx.hasUI && typeof ctx.ui?.setStatus === "function") {
-          tpsTracker.clearNow(ctx.ui);
-        }
         footerHandle?.requestRender();
       }
     } catch (err) {
@@ -161,16 +150,6 @@ export default function registerGrokBuildExtension(pi: ExtensionAPI): void {
       if (event.message.role === "assistant") {
         statusController.endTurn();
         originalSetWorkingMessage?.(undefined);
-        // R2: message_end carries the final AssistantMessage (usage + timestamp are
-        // complete, not partial — verified in pi-ai types.d.ts:306,316). Emit the
-        // honest turn-average tok/s into the footer extraStatuses slot.
-        const tpsText = tpsTracker.onAssistantMessageEnd(
-          event.message.timestamp,
-          event.message.usage?.output,
-        );
-        if (tpsText && ctx.hasUI && typeof ctx.ui?.setStatus === "function") {
-          ctx.ui.setStatus(TPS_STATUS_KEY, tpsText);
-        }
         footerHandle?.requestRender();
       }
     } catch (err) {

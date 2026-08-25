@@ -7,7 +7,6 @@ import { renderHeader } from "../header.ts";
 import { renderGrokFooter, visibleWidth, truncateToWidth, shortenModelName, DEFAULT_FOOTER_CONFIG } from "../footer.ts";
 import { WorkingStateController } from "../status.ts";
 import { hexToOsc12, setCursorColor, resetCursorColor } from "../cursor.ts";
-import { TpsTracker, TPS_STATUS_KEY } from "../tps.ts";
 
 test("Theme JSON validation - all 3 themes", () => {
   const codingTheme = JSON.parse(fs.readFileSync(path.resolve("themes/grok-build-coding.json"), "utf8"));
@@ -357,119 +356,7 @@ test("shortenModelName extended mappings (R1)", () => {
   assert.equal(shortenModelName("kimi-k3-256k"), "kimi-k3");
 });
 
-test("TpsTracker deterministic math & hide conditions (R2)", () => {
-  const tracker = new TpsTracker();
-
-  // 1. Deterministic window math: 100 tokens over 1.0s -> 100 tok/s
-  tracker.onAssistantMessageStart(1000);
-  assert.equal(tracker.onAssistantMessageEnd(2000, 100), "↑ 100 tok/s");
-
-  // 2. Hide: short turn (0.2s < 0.5s threshold)
-  tracker.onAssistantMessageStart(1000);
-  assert.equal(tracker.onAssistantMessageEnd(1200, 100), undefined);
-
-  // 3. Hide: zero output tokens
-  tracker.onAssistantMessageStart(1000);
-  assert.equal(tracker.onAssistantMessageEnd(3000, 0), undefined);
-
-  // 4. Hide: missing usage (null and undefined)
-  tracker.onAssistantMessageStart(1000);
-  assert.equal(tracker.onAssistantMessageEnd(3000, null), undefined);
-  tracker.onAssistantMessageStart(1000);
-  assert.equal(tracker.onAssistantMessageEnd(3000, undefined), undefined);
-
-  // Defensive: end without start, negative duration, NaN-ish inputs
-  const orphan = new TpsTracker();
-  assert.equal(orphan.onAssistantMessageEnd(3000, 100), undefined);
-  const backwards = new TpsTracker();
-  backwards.onAssistantMessageStart(3000);
-  assert.equal(backwards.onAssistantMessageEnd(1000, 100), undefined);
-
-  // Rounding: 100 tokens over 3.0s -> 33.33 -> "↑ 33 tok/s"
-  const r = new TpsTracker();
-  r.onAssistantMessageStart(0);
-  assert.equal(r.onAssistantMessageEnd(3000, 100), "↑ 33 tok/s");
-});
-
-test("grok-tps wiring: setStatus sequence across turns (R2)", () => {
-  const statusCalls = [];
-
-  const fakeCtx = {
-    hasUI: true,
-    mode: "tui",
-    cwd: process.cwd(),
-    model: { name: "claude-3.7-sonnet", id: "anthropic/claude-3.7-sonnet", contextWindow: 200000 },
-    getContextUsage: () => undefined,
-    ui: {
-      setHeader: () => {},
-      setFooter: () => {},
-      setWorkingMessage: () => {},
-      notify: () => {},
-      setTitle: () => {},
-      setHiddenThinkingLabel: () => {},
-      setStatus: (key, val) => statusCalls.push([key, val]),
-    },
-  };
-
-  const listeners = {};
-  const fakePi = {
-    on: (evt, handler) => {
-      listeners[evt] = handler;
-    },
-    registerCommand: () => {},
-  };
-
-  registerGrokBuildExtension(fakePi);
-  listeners.session_start({}, fakeCtx);
-
-  const tpsCalls = () => statusCalls.filter(([k]) => k === TPS_STATUS_KEY);
-
-  // 5a. Turn 1 start -> clear (stale value removed)
-  listeners.message_start({ message: { role: "assistant", timestamp: 1000 } }, fakeCtx);
-  assert.deepEqual(tpsCalls(), [[TPS_STATUS_KEY, undefined]], "first message_start must clear the slot");
-
-  // Turn 1 end -> write measured value (100 tokens / 2.0s = 50 tok/s)
-  listeners.message_end(
-    { message: { role: "assistant", timestamp: 3000, usage: { output: 100 } } },
-    fakeCtx,
-  );
-  assert.deepEqual(
-    tpsCalls(),
-    [[TPS_STATUS_KEY, undefined], [TPS_STATUS_KEY, "↑ 50 tok/s"]],
-    "message_end must emit the measured turn-average rate",
-  );
-
-  // 5b. Turn 2 start -> clear again (previous value must not ride into the new turn)
-  listeners.message_start({ message: { role: "assistant", timestamp: 10000 } }, fakeCtx);
-  assert.equal(tpsCalls().at(-1)[1], undefined, "second message_start must clear again");
-
-  // Turn 2 end -> write the new measured value (200 tokens / 2.0s = 100 tok/s)
-  listeners.message_end(
-    { message: { role: "assistant", timestamp: 12000, usage: { output: 200 } } },
-    fakeCtx,
-  );
-  assert.equal(tpsCalls().at(-1)[1], "↑ 100 tok/s");
-
-  // 6. Non-assistant messages must not touch the slot
-  const before = tpsCalls().length;
-  listeners.message_start({ message: { role: "user", timestamp: 20000 } }, fakeCtx);
-  listeners.message_end({ message: { role: "user", timestamp: 20001 } }, fakeCtx);
-  assert.equal(tpsCalls().length, before, "user messages must not trigger grok-tps");
-
-  // Hide-condition through the wiring: zero-output turn emits nothing new
-  listeners.message_start({ message: { role: "assistant", timestamp: 30000 } }, fakeCtx);
-  listeners.message_end(
-    { message: { role: "assistant", timestamp: 32000, usage: { output: 0 } } },
-    fakeCtx,
-  );
-  assert.equal(tpsCalls().at(-1)[1], undefined, "zero-output turn must leave the slot cleared");
-
-  // session_shutdown clears the slot and does not throw
-  assert.doesNotThrow(() => listeners.session_shutdown({}, fakeCtx));
-  assert.equal(tpsCalls().at(-1)[1], undefined, "session_shutdown must clear grok-tps");
-});
-
-test("footer width regression with grok-tps status (R2.5)", () => {
+test("footer width regression with extension status (R2.5)", () => {
   // Same fake ctx shape as the existing footer test (field richness aligned).
   const ctx = {
     hasUI: true,
@@ -479,7 +366,9 @@ test("footer width regression with grok-tps status (R2.5)", () => {
     getContextUsage: () => ({ usedTokens: 48000, contextWindow: 200000, percent: 24 }),
   };
   const statusController = new WorkingStateController(); // idle -> "○ idle" badge
-  const extensionStatuses = new Map([["grok-tps", "↑ 50 tok/s"]]);
+  // Any extension may inject statuses (e.g. pi-velocity writes "19.6 / 23.2 tps");
+  // the footer must survive them at every width without overflowing pi-tui.
+  const extensionStatuses = new Map([["velocity", "19.6 / 23.2 tps"]]);
 
   const widths = [40, 50, 60, 70, 80, 100, 120];
   const rows = new Map();
