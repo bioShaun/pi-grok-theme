@@ -267,3 +267,40 @@ Session Start
 2. **光标颜色** — Grok Build 使用 `#E0AF68` 琥珀金光标，但 Pi 的编辑器光标使用 `\x1b[7m` 反色渲染，无法通过主题控制
 3. **活动边框色** — `borderAccent` (`#7AA2F7`) 仅在特定场景生效（如搜索框焦点），主编辑器的聚焦态边框由 thinking level 控制
 4. **自动主题切换** — 支持 `auto:grok-build/light` 格式的自动亮暗切换配置
+
+---
+
+## 📅 2026-08-25：grok-tps 指标撤回（测量公式不可满足）
+
+### 背景
+
+R2 轮曾新增 footer `↑ N tok/s` 指标（turn 平均输出速率），公式冻结为
+`usage.output ÷ (message_end.timestamp − message_start.timestamp)`。实现 + 12 项单测全绿，
+实机从未显示。
+
+### 根因
+
+- pi-ai **所有** provider 的 `AssistantMessage.timestamp` 只在流对象创建时赋值一次
+  （`openai-completions.js:120`、`anthropic-messages.js:349` 等，全库共 13 处
+  `timestamp: Date.now()`）；
+- `message_start` / `message_end` 透传**同一个** message 对象
+  （pi-coding-agent `agent-session.js:467-485`），两个事件的 timestamp 恒相等
+  → 公式算出的 turn 时长恒为 0 → 被 0.5s 最小显示阈值永久隐藏；
+- 单测全绿纯属注入合成时间戳，fixture 与真实数据路径不符。
+
+### 处置
+
+指标整体撤回（commit `161612d`）：公式在当前 extension API 下不可满足，且 pi-velocity
+已在同一 footer extraStatuses 槽位提供实时速率。宽度回归测试保留并泛化为任意
+extension status（pi-tui 对超宽行 hard-crash 的风险面与具体扩展无关）。
+
+### 若未来重做
+
+wall-clock 必须取**事件到达 extension handler 的时刻**（handler 内 `Date.now()`），
+不能取 `event.message.timestamp`；速率计算器保持纯函数 + 构造注入时钟，以保住
+确定性单测。
+
+### 教训（已同步至 herdr-pair skill §2）
+
+冻结任何测量公式进 spec 之前，必须沿真实数据路径验证该量"存在且会变化"；
+类型定义只证明字段存在，不证明它携带所需信息。
