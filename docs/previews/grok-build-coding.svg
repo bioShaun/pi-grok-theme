@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="998" height="282" viewBox="0 0 998 282">
+<rect width="100%" height="100%" fill="#0A0A0A"/>
+<text x="16" y="30" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">grok-build-coding — header (opt-in via /grok header)</text>
+<text x="16.0" y="56" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)">╭─</text>
+<text x="32.8" y="56" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(122,162,247)"> GROK BUILD </text>
+<text x="133.6" y="56" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)">─────────────────────────────────────────────────────────────────────────────────────╮</text>
+<text x="16.0" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)">│</text>
+<text x="24.4" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)">  </text>
+<text x="41.2" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)">📁 ~/pi/pi-grok-theme</text>
+<text x="217.6" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)"> · </text>
+<text x="242.8" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(122,162,247)">⎇ main</text>
+<text x="293.2" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)"> · </text>
+<text x="318.4" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(136,144,159)">model: </text>
+<text x="377.2" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)">claude-3.7-sonnet</text>
+<text x="520.0" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)"> · </text>
+<text x="545.2" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)">v0.4.0</text>
+<text x="595.6" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)">                              </text>
+<text x="847.6" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)">│</text>
+<text x="16.0" y="108" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)">╰──────────────────────────────────────────────────────────────────────────────────────────────────╯</text>
+<text x="16" y="148" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">footer — wide layout (auto preset, 120 cols)</text>
+<text x="16.0" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(136,144,159)">~/pi/pi-grok-theme</text>
+<text x="167.2" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)">  </text>
+<text x="184.0" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(122,162,247)">⎇ main</text>
+<text x="234.4" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)"> · </text>
+<text x="259.6" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(136,144,159)">claude-3.7-sonnet</text>
+<text x="402.4" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)"> · </text>
+<text x="427.6" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(136,144,159)">⇣48k/200k (24%)</text>
+<text x="553.6" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)"> · </text>
+<text x="578.8" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(136,144,159)">19.6 / 23.2 tps</text>
+<text x="704.8" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)"> · </text>
+<text x="730.0" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(136,144,159)">✻ high</text>
+<text x="780.4" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)"> · </text>
+<text x="805.6" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(224,175,104)">●</text>
+<text x="814.0" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)"> </text>
+<text x="822.4" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(136,144,159)">running bash (0.0s)</text>
+<text x="16" y="214" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">footer — narrow layout (44 cols): compact model + context %</text>
+<text x="16.0" y="240" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(136,144,159)">sonnet-3.7</text>
+<text x="100.0" y="240" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)"> · </text>
+<text x="125.2" y="240" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(136,144,159)">24%</text>
+<text x="150.4" y="240" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)"> · </text>
+<text x="175.6" y="240" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(224,175,104)">●</text>
+<text x="184.0" y="240" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)"> </text>
+<text x="192.4" y="240" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(136,144,159)">running bash (0.0s)</text>
+</svg>
