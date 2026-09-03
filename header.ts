@@ -5,12 +5,18 @@
  * ╭─ GROK BUILD ────────────────────────────────────────────────────────────╮
  * │ 📁 my-project  ⎇ main  ·  model: claude-3.7-sonnet  ·  v0.2.0           │
  * ╰─────────────────────────────────────────────────────────────────────────╯
+ *
+ * v0.4: all foreground color comes from the active Pi theme through the
+ * chrome adapter; the render path reads the live `ctx.ui.theme` so theme
+ * switches recolor the header without reinstalling it.
  */
 
 import * as path from "node:path";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import { formatCwd, getGitBranch, truncateToWidth, visibleWidth } from "./footer.ts";
-import { ANSI_COLORS } from "./status.ts";
+import { createChromeTheme } from "./chrome-theme.ts";
+import { getGlyphs } from "./glyphs.ts";
+import { VERSION } from "./version.ts";
 
 export interface HeaderOptions {
   showTitle?: boolean;
@@ -23,7 +29,7 @@ export const DEFAULT_HEADER_OPTIONS: HeaderOptions = {
   showTitle: true,
   showBranch: true,
   showModel: true,
-  version: "0.2.0",
+  version: VERSION,
 };
 
 /**
@@ -33,10 +39,14 @@ export function renderHeader(
   ctx: ExtensionContext,
   width: number,
   options: HeaderOptions = DEFAULT_HEADER_OPTIONS,
+  theme?: Theme | null,
 ): string[] {
   if (width < 20) return [""];
 
+  const chrome = createChromeTheme(theme);
+  const glyphs = getGlyphs();
   const innerWidth = Math.max(1, width - 4);
+  void innerWidth;
   const cwdFormatted = formatCwd(ctx.cwd);
   const branch = options.showBranch ? getGitBranch(ctx.cwd) : undefined;
   const rawModel = ctx.model?.name || ctx.model?.id || "";
@@ -47,35 +57,35 @@ export function renderHeader(
 
   // Metadata parts
   const parts: string[] = [];
-  parts.push(`${ANSI_COLORS.fg}📁 ${cwdFormatted}${ANSI_COLORS.reset}`);
+  parts.push(`${chrome.fg("text", `${glyphs.folderMark} ${cwdFormatted}`)}`);
   if (branch) {
-    parts.push(`${ANSI_COLORS.cyan}⎇ ${branch}${ANSI_COLORS.reset}`);
+    parts.push(chrome.fg("accent", `${glyphs.branchMark} ${branch}`));
   }
   if (options.showModel && rawModel) {
-    parts.push(`${ANSI_COLORS.muted}model: ${ANSI_COLORS.fg}${rawModel}${ANSI_COLORS.reset}`);
+    parts.push(`${chrome.fg("muted", "model: ")}${chrome.fg("text", rawModel)}`);
   }
   if (versionTag) {
-    parts.push(`${ANSI_COLORS.dim}${versionTag}${ANSI_COLORS.reset}`);
+    parts.push(chrome.fg("dim", versionTag));
   }
 
-  const sep = `${ANSI_COLORS.dim} · ${ANSI_COLORS.reset}`;
+  const sep = chrome.fg("dim", " · ");
   const metaContent = parts.join(sep);
 
   // Borders
   const borderChar = "─";
-  const titleFormatted = `${ANSI_COLORS.bold}${ANSI_COLORS.blue}${brandTitle}${ANSI_COLORS.reset}`;
+  const titleFormatted = chrome.bold(chrome.fg("accent", brandTitle));
   const titleWidth = visibleWidth(brandTitle);
   const topBorderRightLength = Math.max(0, width - 3 - titleWidth);
 
-  const topBorder = `${ANSI_COLORS.dim}╭─${ANSI_COLORS.reset}${titleFormatted}${ANSI_COLORS.dim}${borderChar.repeat(topBorderRightLength)}╮${ANSI_COLORS.reset}`;
-  const bottomBorder = `${ANSI_COLORS.dim}╰${borderChar.repeat(width - 2)}╯${ANSI_COLORS.reset}`;
+  const topBorder = `${chrome.fg("dim", "╭─")}${titleFormatted}${chrome.fg("dim", `${borderChar.repeat(topBorderRightLength)}╮`)}`;
+  const bottomBorder = chrome.fg("dim", `╰${borderChar.repeat(width - 2)}╯`);
 
   const paddedContent = `  ${metaContent}`;
   const truncatedContent = truncateToWidth(paddedContent, width - 2);
   const contentWidth = visibleWidth(truncatedContent);
   const rightPad = Math.max(0, width - 2 - contentWidth);
 
-  const middleLine = `${ANSI_COLORS.dim}│${ANSI_COLORS.reset}${truncatedContent}${" ".repeat(rightPad)}${ANSI_COLORS.dim}│${ANSI_COLORS.reset}`;
+  const middleLine = `${chrome.fg("dim", "│")}${truncatedContent}${" ".repeat(rightPad)}${chrome.fg("dim", "│")}`;
 
   return [topBorder, middleLine, bottomBorder];
 }
@@ -89,9 +99,17 @@ export function installHeader(
 ): { dispose: () => void } | undefined {
   if (ctx.hasUI && typeof ctx.ui?.setHeader === "function") {
     try {
-      ctx.ui.setHeader((_tui, _theme) => {
+      ctx.ui.setHeader((_tui, theme) => {
         return {
-          render: (width: number) => renderHeader(ctx, width, options),
+          render: (width: number) => {
+            let liveTheme: Theme | undefined;
+            try {
+              liveTheme = ctx.ui?.theme ?? undefined;
+            } catch {
+              liveTheme = undefined;
+            }
+            return renderHeader(ctx, width, options, liveTheme ?? theme);
+          },
           invalidate: () => {},
         };
       });

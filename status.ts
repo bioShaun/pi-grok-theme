@@ -5,13 +5,32 @@
  * - Single-line minimal indicators: `● working (2.4s)`, `● thinking (1.2s)`, `● running bash...`
  * - Working message filtering and sanitization
  * - Duration tracking and state lifecycle
+ *
+ * v0.4: the controller exposes activity as a **semantic** badge (state, icon
+ * key, tone, label, phase/turn elapsed) with no embedded ANSI; the legacy
+ * `formattedText`/`rawText` fields remain as compatibility shims until the
+ * migration ticket removes the old rendering path.
  */
+
+import type { GlyphKey } from "./glyphs.ts";
 
 export type AgentActivityState = "idle" | "thinking" | "streaming" | "running_tool" | "working";
 
+/** Semantic tone of an activity state — styled by the chrome theme adapter. */
+export type StatusTone = "muted" | "accent" | "thinking" | "warning";
+
 export interface StatusBadge {
-  dot: string;
+  // --- semantic v0.4 fields (no ANSI) ---
+  state: AgentActivityState;
+  icon: GlyphKey;
+  tone: StatusTone;
   label: string;
+  /** Time since the current thinking/streaming/tool phase began. */
+  phaseElapsedMs?: number;
+  /** Time since the assistant turn began. */
+  turnElapsedMs?: number;
+  // --- v0.3 compatibility fields (shim; scheduled for removal in migration) ---
+  dot: string;
   duration?: string;
   rawText: string;
   formattedText: string;
@@ -75,7 +94,7 @@ export class WorkingStateController {
   private state: AgentActivityState = "idle";
   private currentTool: string | undefined;
   private turnStartAt: number | undefined;
-  private stateStartAt: number | undefined;
+  private phaseStartAt: number | undefined;
   private lastActiveDurationMs: number = 0;
 
   constructor() {}
@@ -95,30 +114,36 @@ export class WorkingStateController {
   public startTurn(now = Date.now()): void {
     this.state = "thinking";
     this.turnStartAt = now;
-    this.stateStartAt = now;
+    this.phaseStartAt = now;
     this.currentTool = undefined;
   }
 
   public startThinking(now = Date.now()): void {
-    this.state = "thinking";
-    this.stateStartAt = now;
+    if (this.state !== "thinking") {
+      this.state = "thinking";
+      this.phaseStartAt = now;
+    }
   }
 
   public startStreaming(now = Date.now()): void {
-    this.state = "streaming";
-    if (!this.stateStartAt) this.stateStartAt = now;
+    // message_update fires per token; only the transition into streaming
+    // starts a new phase clock, repeated updates do not reset it.
+    if (this.state !== "streaming") {
+      this.state = "streaming";
+      this.phaseStartAt = now;
+    }
   }
 
   public startTool(toolName: string, now = Date.now()): void {
     this.state = "running_tool";
     this.currentTool = toolName;
-    this.stateStartAt = now;
+    this.phaseStartAt = now;
   }
 
   public endTool(_toolName?: string, now = Date.now()): void {
     this.currentTool = undefined;
     this.state = "working";
-    this.stateStartAt = now;
+    this.phaseStartAt = now;
   }
 
   public endTurn(now = Date.now()): void {
@@ -128,60 +153,91 @@ export class WorkingStateController {
     this.state = "idle";
     this.currentTool = undefined;
     this.turnStartAt = undefined;
-    this.stateStartAt = undefined;
+    this.phaseStartAt = undefined;
   }
 
+  /** Whole-turn elapsed, or the last active turn duration when idle. */
   public getElapsedMs(now = Date.now()): number {
     if (this.state === "idle") return this.lastActiveDurationMs;
-    const start = this.turnStartAt ?? this.stateStartAt ?? now;
+    const start = this.turnStartAt ?? this.phaseStartAt ?? now;
     return Math.max(0, now - start);
   }
 
+  /** Time since the current phase (thinking/streaming/tool) began; undefined while idle. */
+  public getPhaseElapsedMs(now = Date.now()): number | undefined {
+    if (this.state === "idle") return undefined;
+    return Math.max(0, now - (this.phaseStartAt ?? now));
+  }
+
+  /** Time since the assistant turn began; undefined while idle. */
+  public getTurnElapsedMs(now = Date.now()): number | undefined {
+    if (this.state === "idle") return undefined;
+    return Math.max(0, now - (this.turnStartAt ?? this.phaseStartAt ?? now));
+  }
+
   /**
-   * Get the current status badge formatted with ANSI colors
+   * Semantic activity badge. `formattedText`/`rawText` are v0.3 shims and
+   * carry embedded ANSI; consume `state`/`tone`/`icon`/`label` instead.
    */
   public getBadge(now = Date.now()): StatusBadge {
     if (this.state === "idle") {
       return {
-        dot: "○",
+        state: "idle",
+        icon: "idleDot",
+        tone: "muted",
         label: "idle",
+        dot: "○",
         rawText: "○ idle",
         formattedText: `${ANSI_COLORS.muted}○ idle${ANSI_COLORS.reset}`,
       };
     }
 
-    const elapsed = this.getElapsedMs(now);
-    const durationStr = formatDuration(elapsed);
+    const phaseElapsedMs = this.getPhaseElapsedMs(now);
+    const turnElapsedMs = this.getTurnElapsedMs(now);
+    // v0.4: the status label shows PHASE time (resets per thinking/streaming/
+    // tool transition); turn time rides the semantic badge for the full preset.
+    const durationStr = formatDuration(phaseElapsedMs ?? 0);
 
-    let dotColor = ANSI_COLORS.blue;
-    let label = "working";
+    let tone: StatusTone;
+    let label: string;
+    // Shim rendering keeps the exact v0.3 per-state dot colors.
+    let shimDotColor: string;
 
     switch (this.state) {
       case "thinking":
-        dotColor = ANSI_COLORS.purple;
+        tone = "thinking";
         label = `thinking (${durationStr})`;
+        shimDotColor = ANSI_COLORS.purple;
         break;
       case "running_tool":
-        dotColor = ANSI_COLORS.amber;
+        tone = "warning";
         label = `${normalizeToolAction(this.currentTool)} (${durationStr})`;
+        shimDotColor = ANSI_COLORS.amber;
         break;
       case "streaming":
-        dotColor = ANSI_COLORS.cyan;
+        tone = "accent";
         label = `generating (${durationStr})`;
+        shimDotColor = ANSI_COLORS.cyan;
         break;
       case "working":
       default:
-        dotColor = ANSI_COLORS.blue;
+        tone = "accent";
         label = `working (${durationStr})`;
+        shimDotColor = ANSI_COLORS.blue;
         break;
     }
 
     const rawText = `● ${label}`;
-    const formattedText = `${dotColor}●${ANSI_COLORS.reset} ${ANSI_COLORS.muted}${label}${ANSI_COLORS.reset}`;
+    const formattedText = `${shimDotColor}●${ANSI_COLORS.reset} ${ANSI_COLORS.muted}${label}${ANSI_COLORS.reset}`;
 
     return {
-      dot: "●",
+      state: this.state,
+      icon: "workingDot",
+      tone,
       label,
+      phaseElapsedMs,
+      turnElapsedMs,
+      dot: "●",
       duration: durationStr,
       rawText,
       formattedText,

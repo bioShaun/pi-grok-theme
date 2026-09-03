@@ -245,10 +245,10 @@ test("Header & Footer Component render interface and /grok commands", () => {
   // Command verification
   assert.ok(registeredCommands.grok, "/grok command must be registered");
 
-  // /grok info / status shows v0.3.0 and cursor color
+  // /grok info / status shows the synced version and cursor color
   notifications = [];
   registeredCommands.grok.handler("info", fakeCtx);
-  assert.ok(notifications.some((n) => n.msg.includes("v0.3.0") && n.msg.includes("Amber Gold")));
+  assert.ok(notifications.some((n) => n.msg.includes("v0.4.0") && n.msg.includes("Amber Gold")));
 
   // /grok theme lists available themes
   notifications = [];
