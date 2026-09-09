@@ -5,7 +5,7 @@ import path from "node:path";
 import os from "node:os";
 import registerGrokBuildExtension from "../index.ts";
 import { renderHeader } from "../header.ts";
-import { renderGrokFooter, visibleWidth, truncateToWidth, shortenModelName, DEFAULT_FOOTER_CONFIG } from "../footer.ts";
+import { renderGrokFooter, visibleWidth, truncateToWidth, shortenModelName, getGitBranch, DEFAULT_FOOTER_CONFIG } from "../footer.ts";
 import { WorkingStateController } from "../status.ts";
 import { hexToOsc12, setCursorColor, resetCursorColor } from "../cursor.ts";
 
@@ -113,6 +113,11 @@ test("WorkingStateController filterWorkingMessage clear semantics & idle pass-th
   ctrl.endTurn();
 });
 
+/** Isolated settings path so tests never read the real ~/.pi/agent file. */
+function tempSettingsPath() {
+  return path.join(os.tmpdir(), `pi-grok-theme-test-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.json`);
+}
+
 test("setWorkingMessage interceptor & lifecycle cleanup", () => {
   let receivedMessages = [];
   const originalSetWorkingMessage = (msg) => {
@@ -139,7 +144,7 @@ test("setWorkingMessage interceptor & lifecycle cleanup", () => {
     registerCommand: () => {},
   };
 
-  registerGrokBuildExtension(fakePi);
+  registerGrokBuildExtension(fakePi, { settingsPath: tempSettingsPath() });
 
   // session_start installs interceptor
   listeners.session_start({}, fakeCtx);
@@ -300,7 +305,7 @@ test("session_start shell chrome: setTitle + setHiddenThinkingLabel", () => {
     registerCommand: () => {},
   };
 
-  registerGrokBuildExtension(fakePi);
+  registerGrokBuildExtension(fakePi, { settingsPath: tempSettingsPath() });
   listeners.session_start({}, fakeCtx);
 
   // Title: called exactly once, grok format with ⚡ and cwd basename
@@ -347,7 +352,7 @@ test("session_start shell chrome honors legacy glyphs via PI_GROK_LEGACY_GLYPHS"
       on: (evt, handler) => { listeners[evt] = handler; },
       registerCommand: () => {},
     };
-    registerGrokBuildExtension(fakePi);
+    registerGrokBuildExtension(fakePi, { settingsPath: tempSettingsPath() });
     listeners.session_start({}, fakeCtx);
     assert.ok(titleCalls[0].startsWith("# grok"), `legacy brandMark expected, got ${titleCalls[0]}`);
     assert.ok(!titleCalls[0].includes("⚡"), "legacy mode must not use modern brandMark");
@@ -365,7 +370,7 @@ test("unknown /grok subcommand help lists footer", async () => {
     on: () => {},
     registerCommand: (_n, def) => { registered = def; },
   };
-  registerGrokBuildExtension(fakePi);
+  registerGrokBuildExtension(fakePi, { settingsPath: tempSettingsPath() });
   await registered.handler("wat", {
     hasUI: true,
     mode: "tui",
@@ -419,6 +424,43 @@ test("shortenModelName extended mappings (R1)", () => {
   assert.equal(shortenModelName("claude-3.7-sonnet"), "sonnet-3.7");
   assert.equal(shortenModelName("gpt-5.6"), "gpt-5.6");
   assert.equal(shortenModelName("kimi-k3-256k"), "kimi-k3");
+});
+
+test("getGitBranch handles .git dir, worktree-style .git file, and walks up", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-grok-theme-git-"));
+  try {
+    // Regular repo: `.git` directory with a HEAD ref.
+    const repo = path.join(root, "repo");
+    fs.mkdirSync(path.join(repo, ".git"), { recursive: true });
+    fs.writeFileSync(path.join(repo, ".git", "HEAD"), "ref: refs/heads/main\n");
+
+    // Linked worktree: `.git` is a file with an absolute `gitdir:` pointer.
+    const gitdir = path.join(repo, ".git", "worktrees", "wt");
+    fs.mkdirSync(gitdir, { recursive: true });
+    fs.writeFileSync(path.join(gitdir, "HEAD"), "ref: refs/heads/feature\n");
+    const wt = path.join(root, "wt");
+    fs.mkdirSync(wt, { recursive: true });
+    fs.writeFileSync(path.join(wt, ".git"), `gitdir: ${gitdir}\n`);
+
+    // Submodule style: `.git` file with a relative `gitdir:` pointer.
+    const sub = path.join(root, "sub");
+    const moduleGitdir = path.join(root, "subm", "m");
+    fs.mkdirSync(moduleGitdir, { recursive: true });
+    fs.writeFileSync(path.join(moduleGitdir, "HEAD"), "ref: refs/heads/dev\n");
+    fs.mkdirSync(sub, { recursive: true });
+    fs.writeFileSync(path.join(sub, ".git"), "gitdir: ../subm/m\n");
+
+    // Nested cwd must walk up to the enclosing repo.
+    const nested = path.join(repo, "a", "b");
+    fs.mkdirSync(nested, { recursive: true });
+
+    assert.equal(getGitBranch(wt), "feature", "worktree-style .git file resolves branch");
+    assert.equal(getGitBranch(sub), "dev", "relative gitdir resolves branch");
+    assert.equal(getGitBranch(nested), "main", "nested cwd walks up to repo");
+    assert.equal(getGitBranch(root), undefined, "no git anywhere → no branch");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("footer width regression with extension status (R2.5)", () => {

@@ -205,16 +205,32 @@ export function getGitBranch(cwd: string): string | undefined {
   let current = path.resolve(cwd);
   let branch: string | undefined;
 
+  const readBranchFromHead = (gitDir: string): string | undefined => {
+    const headPath = path.join(gitDir, "HEAD");
+    if (!fs.existsSync(headPath)) return undefined;
+    const content = fs.readFileSync(headPath, "utf8").trim();
+    if (content.startsWith("ref: refs/heads/")) {
+      return content.replace("ref: refs/heads/", "");
+    }
+    // Detached HEAD
+    return content.length >= 7 ? content.slice(0, 7) : undefined;
+  };
+
   try {
     while (true) {
-      const gitHeadPath = path.join(current, ".git", "HEAD");
-      if (fs.existsSync(gitHeadPath)) {
-        const content = fs.readFileSync(gitHeadPath, "utf8").trim();
-        if (content.startsWith("ref: refs/heads/")) {
-          branch = content.replace("ref: refs/heads/", "");
-        } else if (content.length >= 7) {
-          // Detached HEAD
-          branch = content.slice(0, 7);
+      const dotGitPath = path.join(current, ".git");
+      if (fs.existsSync(dotGitPath)) {
+        if (fs.statSync(dotGitPath).isDirectory()) {
+          branch = readBranchFromHead(dotGitPath);
+        } else {
+          // Worktree / submodule: `.git` is a file pointing at the real gitdir.
+          const gitdir = /^gitdir:\s*(.+)$/m.exec(fs.readFileSync(dotGitPath, "utf8"))?.[1]?.trim();
+          if (gitdir) {
+            const resolved = path.isAbsolute(gitdir)
+              ? gitdir
+              : path.resolve(current, gitdir);
+            branch = readBranchFromHead(resolved);
+          }
         }
         break;
       }

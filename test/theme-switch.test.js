@@ -4,10 +4,17 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import os from "node:os";
+import path from "node:path";
 
 import registerGrokBuildExtension from "../index.ts";
 
 const INSTALLED = ["grok-build-coding", "grok-build", "grok-build-day", "vendor-light", "boom-theme"];
+
+/** Isolated settings path so tests never read the real ~/.pi/agent file. */
+function tempSettingsPath() {
+  return path.join(os.tmpdir(), `pi-grok-theme-test-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}.json`);
+}
 
 function harness({ themeName = "grok-build-coding", withSwitchingApis = true } = {}) {
   const notifications = [];
@@ -66,7 +73,7 @@ function harness({ themeName = "grok-build-coding", withSwitchingApis = true } =
     return true;
   };
 
-  registerGrokBuildExtension(fakePi);
+  registerGrokBuildExtension(fakePi, { settingsPath: tempSettingsPath() });
   listeners.session_start({}, fakeCtx);
 
   return {
