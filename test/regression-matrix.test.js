@@ -8,6 +8,9 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import { renderGrokFooter, DEFAULT_FOOTER_CONFIG, visibleWidth, FOOTER_PRESETS } from "../footer.ts";
 import { renderHeader } from "../header.ts";
@@ -282,7 +285,8 @@ function lifecycleHarness() {
     ui,
   };
 
-  registerGrokBuildExtension(fakePi);
+  const settingsPath = path.join(os.tmpdir(), `pi-grok-theme-matrix-${process.pid}-${Date.now()}.json`);
+  registerGrokBuildExtension(fakePi, { settingsPath });
 
   return {
     listeners,
@@ -291,6 +295,7 @@ function lifecycleHarness() {
     setFooterCalls,
     setHeaderCalls,
     indicatorCalls,
+    settingsPath,
     get workingMessageSpyCalls() {
       return workingMessageSpyCalls;
     },
@@ -310,6 +315,7 @@ function lifecycleHarness() {
     },
     restore: () => {
       delete process.env.PI_GROK_LEGACY_GLYPHS;
+      try { fs.unlinkSync(settingsPath); } catch {}
     },
   };
 }

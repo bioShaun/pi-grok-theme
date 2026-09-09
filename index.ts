@@ -1,11 +1,12 @@
 /**
- * index.ts — Extension entry point for pi-grok-build (Phase 2 UI Extension)
+ * index.ts — Extension entry point for pi-grok-theme (Phase 2 UI Extension)
  *
  * Implements:
  * - Single-line Grok-style footer with responsive dropping priority
  * - Workspace header banner
  * - Compact working state controller and working message filtering
  * - Slash command `/grok` for status inspection and configuration
+ * - Persistent footer preset + header toggle across sessions
  * - 100% crash resistance and graceful fallback
  */
 
@@ -16,9 +17,11 @@ import { installHeader } from "./header.ts";
 import { WorkingStateController } from "./status.ts";
 import { createChromeTheme } from "./chrome-theme.ts";
 import { RenderClock, type RenderClockOptions } from "./render-clock.ts";
-import { applyCursorPolicy, resetCursorColor } from "./cursor.ts";
+import { applyCursorPolicy, resetCursorColor, resolveCursorPolicy } from "./cursor.ts";
 import { VERSION } from "./version.ts";
 import { applyWorkingIndicator, restoreWorkingIndicator } from "./working-indicator.ts";
+import { getGlyphs } from "./glyphs.ts";
+import { loadSettings, saveSettings, type GrokThemeSettings } from "./settings.ts";
 
 function readThinkingLevel(ctx: ExtensionContext): string | undefined {
   try {
@@ -47,15 +50,36 @@ function activeTheme(ctx: ExtensionContext): Theme | undefined {
   }
 }
 
+export interface RegisterOptions {
+  renderClock?: RenderClockOptions;
+  /** Override settings file path (tests). Defaults to `~/.pi/agent/pi-grok-theme.json`. */
+  settingsPath?: string;
+}
+
 export default function registerGrokBuildExtension(
   pi: ExtensionAPI,
-  options: { renderClock?: RenderClockOptions } = {},
+  options: RegisterOptions = {},
 ): void {
   const statusController = new WorkingStateController();
   let footerHandle: { dispose: () => void; requestRender: () => void } | null = null;
   let headerHandle: { dispose: () => void } | undefined;
-  let showHeader = false;
   const config: FooterConfig = { ...DEFAULT_FOOTER_CONFIG };
+  let showHeader = false;
+  const settingsPath = options.settingsPath;
+
+  const persistPrefs = (): void => {
+    const payload: GrokThemeSettings = {
+      footerPreset: config.preset,
+      showHeader,
+    };
+    saveSettings(payload, settingsPath);
+  };
+
+  const applyPersistedPrefs = (): void => {
+    const loaded = loadSettings(settingsPath);
+    config.preset = loaded.footerPreset;
+    showHeader = loaded.showHeader;
+  };
 
   // Only this module owns timers (spec §5.3): one coalescing render clock
   // drives elapsed-time refreshes while a turn is active.
@@ -116,7 +140,7 @@ export default function registerGrokBuildExtension(
         };
       }
     } catch (err) {
-      console.error("[pi-grok-build] Failed to initialize UI:", err);
+      console.error("[pi-grok-theme] Failed to initialize UI:", err);
     }
   }
 
@@ -126,6 +150,7 @@ export default function registerGrokBuildExtension(
       uiCtx = ctx;
       statusController.endTurn();
       renderClock.stop(); // never inherit a stale clock from a previous session
+      applyPersistedPrefs();
       // Named-theme cursor policy: bundled darks get Grok amber, the day
       // theme its darker amber, unknown themes keep the terminal default.
       applyCursorPolicy(activeThemeName(ctx));
@@ -138,16 +163,17 @@ export default function registerGrokBuildExtension(
       // session rename/switch (known limitation, see README). Never reset on
       // shutdown — core owns the title after us.
       if (ctx.hasUI && ctx.ui) {
+        const glyphs = getGlyphs();
         if (typeof ctx.ui.setTitle === "function") {
           const branch = getGitBranch(ctx.cwd) ?? "no-git";
-          ctx.ui.setTitle(`⚡ grok · ${path.basename(ctx.cwd)} · ${branch}`);
+          ctx.ui.setTitle(`${glyphs.brandMark} grok · ${path.basename(ctx.cwd)} · ${branch}`);
         }
         if (typeof ctx.ui.setHiddenThinkingLabel === "function") {
-          ctx.ui.setHiddenThinkingLabel("▸ thought");
+          ctx.ui.setHiddenThinkingLabel(`${glyphs.disclosureArrow} thought`);
         }
       }
     } catch (err) {
-      console.error("[pi-grok-build] session_start error:", err);
+      console.error("[pi-grok-theme] session_start error:", err);
     }
   });
 
@@ -172,7 +198,7 @@ export default function registerGrokBuildExtension(
       headerHandle?.dispose();
       headerHandle = undefined;
     } catch (err) {
-      console.error("[pi-grok-build] session_shutdown error:", err);
+      console.error("[pi-grok-theme] session_shutdown error:", err);
     }
   });
 
@@ -187,7 +213,7 @@ export default function registerGrokBuildExtension(
         footerHandle?.requestRender();
       }
     } catch (err) {
-      console.error("[pi-grok-build] message_start error:", err);
+      console.error("[pi-grok-theme] message_start error:", err);
     }
   });
 
@@ -199,7 +225,7 @@ export default function registerGrokBuildExtension(
         renderClock.markDirty();
       }
     } catch (err) {
-      console.error("[pi-grok-build] message_update error:", err);
+      console.error("[pi-grok-theme] message_update error:", err);
     }
   });
 
@@ -213,7 +239,7 @@ export default function registerGrokBuildExtension(
         footerHandle?.requestRender();
       }
     } catch (err) {
-      console.error("[pi-grok-build] message_end error:", err);
+      console.error("[pi-grok-theme] message_end error:", err);
     }
   });
 
@@ -222,7 +248,7 @@ export default function registerGrokBuildExtension(
     try {
       footerHandle?.requestRender();
     } catch (err) {
-      console.error("[pi-grok-build] thinking_level_select error:", err);
+      console.error("[pi-grok-theme] thinking_level_select error:", err);
     }
   });
 
@@ -232,7 +258,7 @@ export default function registerGrokBuildExtension(
       statusController.startTool(event.toolName);
       renderClock.markDirty();
     } catch (err) {
-      console.error("[pi-grok-build] tool_execution_start error:", err);
+      console.error("[pi-grok-theme] tool_execution_start error:", err);
     }
   });
 
@@ -241,13 +267,13 @@ export default function registerGrokBuildExtension(
       statusController.endTool(event.toolName);
       renderClock.markDirty();
     } catch (err) {
-      console.error("[pi-grok-build] tool_execution_end error:", err);
+      console.error("[pi-grok-theme] tool_execution_end error:", err);
     }
   });
 
   // Register interactive slash command
   pi.registerCommand("grok", {
-    description: "Inspect or configure pi-grok-build theme and UI extension (/grok [info|status|theme|footer|toggle|header])",
+    description: "Inspect or configure pi-grok-theme theme and UI extension (/grok [info|status|theme|footer|toggle|header])",
     // Completion offers theme aliases and installed theme names. It only
     // suggests — switching themes as a preview side effect is unsupported and
     // never happens here (spec §4.6).
@@ -285,11 +311,23 @@ export default function registerGrokBuildExtension(
 
       if (sub === "status" || sub === "info" || !sub) {
         const badge = statusController.getBadge();
-        const statusLine = `${chrome.fg(badge.tone, badge.state === "idle" ? "○" : "●")} ${chrome.fg("muted", badge.label)}`;
+        const glyphs = getGlyphs();
+        const iconGlyph = badge.icon === "spinnerFrames" ? undefined : glyphs[badge.icon];
+        const statusIcon = (typeof iconGlyph === "string" ? iconGlyph : undefined)
+          ?? (badge.state === "idle" ? glyphs.idleDot : glyphs.workingDot);
+        const statusLine = `${chrome.fg(badge.tone, statusIcon)} ${chrome.fg("muted", badge.label)}`;
+        const themeName = activeThemeName(ctx) ?? "(unknown)";
+        const cursorPolicy = resolveCursorPolicy(activeThemeName(ctx));
+        const cursorLine = cursorPolicy.color
+          ? `${cursorPolicy.color} (OSC 12)`
+          : "terminal default (OSC 112 restore)";
         const msg = [
-          chrome.bold(chrome.fg("accent", `π Grok Build v${VERSION}`)),
-          `${chrome.fg("muted", "Theme:")} GrokNight / GrokDay (TokyoNight Accents)`,
-          `${chrome.fg("muted", "Cursor:")} Amber Gold (#E0AF68, OSC 12)`,
+          chrome.bold(chrome.fg("accent", `π Grok Theme v${VERSION}`)),
+          `${chrome.fg("muted", "Package:")} pi-grok-theme`,
+          `${chrome.fg("muted", "Theme:")} ${themeName}`,
+          `${chrome.fg("muted", "Cursor:")} ${cursorLine}`,
+          `${chrome.fg("muted", "Footer:")} ${config.preset}`,
+          `${chrome.fg("muted", "Header:")} ${showHeader ? "enabled" : "disabled"}`,
           `${chrome.fg("muted", "Status:")} ${statusLine}`,
           `${chrome.fg("muted", "Workspace:")} ${ctx.cwd}`,
           `${chrome.fg("muted", "Model:")} ${ctx.model?.name || ctx.model?.id || "default"}`,
@@ -320,7 +358,7 @@ export default function registerGrokBuildExtension(
             const installed = installedThemeNames();
             const names = installed ?? ["grok-build-coding", "grok-build", "grok-build-day"];
             const lines = [
-              chrome.bold(chrome.fg("accent", "π Grok Build Themes")),
+              chrome.bold(chrome.fg("accent", "π Grok Theme Themes")),
               ...names.map((name) => {
                 const marker = name === activeName ? `${chrome.fg("success", "●")} ` : "  ";
                 const suffix =
@@ -334,7 +372,7 @@ export default function registerGrokBuildExtension(
           } else {
             // Older Pi without theme APIs: keep the v0.3 guidance.
             const msg = [
-              chrome.bold(chrome.fg("accent", `π Grok Build Themes (v${VERSION})`)),
+              chrome.bold(chrome.fg("accent", `π Grok Theme Themes (v${VERSION})`)),
               `  • ${chrome.fg("accent", "grok-build-coding")} ${chrome.fg("dim", "(Dark, TokyoNight syntax, Recommended)")}`,
               `  • ${chrome.fg("accent", "grok-build")} ${chrome.fg("dim", "(Dark, Minimal monochrome)")}`,
               `  • ${chrome.fg("warning", "grok-build-day")} ${chrome.fg("dim", "(Light, GrokDay clean canvas)")}`,
@@ -402,7 +440,7 @@ export default function registerGrokBuildExtension(
             chrome.bold(chrome.fg("accent", "Grok footer presets")),
             `${chrome.fg("muted", "Current:")} ${config.preset} ${chrome.fg("dim", `(${presetDescriptions[config.preset]})`)}`,
             `${chrome.fg("muted", "Available:")} ${FOOTER_PRESETS.join(", ")}`,
-            `${chrome.fg("dim", "Switch with /grok footer <preset>; changes apply immediately (session-local).")}`,
+            `${chrome.fg("dim", "Switch with /grok footer <preset>; persisted across sessions.")}`,
           ].join("\n");
           notify(msg, "info");
           return;
@@ -414,20 +452,22 @@ export default function registerGrokBuildExtension(
         }
 
         config.preset = presetArg;
+        persistPrefs();
         footerHandle?.requestRender(); // apply immediately
-        notify(`pi-grok-build footer preset: ${presetArg}`, "info");
+        notify(`pi-grok-theme footer preset: ${presetArg}`, "info");
         return;
       }
 
       if (sub === "header") {
         showHeader = !showHeader;
+        persistPrefs();
         headerHandle?.dispose();
         if (showHeader) {
           headerHandle = installHeader(ctx);
         } else {
           headerHandle = undefined;
         }
-        notify(`pi-grok-build header: ${showHeader ? "enabled" : "disabled"}`, "info");
+        notify(`pi-grok-theme header: ${showHeader ? "enabled" : "disabled"}`, "info");
         return;
       }
 
@@ -435,13 +475,13 @@ export default function registerGrokBuildExtension(
         config.compactThreshold = config.compactThreshold === 80 ? 9999 : 80;
         footerHandle?.requestRender();
         notify(
-          `pi-grok-build footer mode: ${config.compactThreshold > 1000 ? "always-compact" : "auto-responsive"}`,
+          `pi-grok-theme footer mode: ${config.compactThreshold > 1000 ? "always-compact" : "auto-responsive"}`,
           "info",
         );
         return;
       }
 
-      notify(`Unknown subcommand "${sub}". Usage: /grok [info|status|theme|toggle|header]`, "warning");
+      notify(`Unknown subcommand "${sub}". Usage: /grok [info|status|theme|footer|toggle|header]`, "warning");
     },
   });
 }

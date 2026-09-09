@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import registerGrokBuildExtension from "../index.ts";
 import { renderHeader } from "../header.ts";
 import { renderGrokFooter, visibleWidth, truncateToWidth, shortenModelName, DEFAULT_FOOTER_CONFIG } from "../footer.ts";
@@ -51,14 +52,15 @@ test("visibleWidth & truncateToWidth calculation", () => {
 test("WorkingStateController lifecycle", () => {
   const ctrl = new WorkingStateController();
   assert.equal(ctrl.getState(), "idle");
-  assert.equal(ctrl.getBadge().rawText, "○ idle");
+  assert.equal(ctrl.getBadge().label, "idle");
+  assert.equal(ctrl.getBadge().icon, "idleDot");
 
   ctrl.startTurn();
   assert.equal(ctrl.getState(), "thinking");
 
   ctrl.startTool("bash");
   assert.equal(ctrl.getState(), "running_tool");
-  assert.ok(ctrl.getBadge().rawText.includes("running bash"));
+  assert.ok(ctrl.getBadge().label.includes("running bash"));
 
   ctrl.endTool();
   assert.equal(ctrl.getState(), "working");
@@ -209,7 +211,8 @@ test("Header & Footer Component render interface and /grok commands", () => {
     },
   };
 
-  registerGrokBuildExtension(fakePi);
+  const settingsPath = path.join(os.tmpdir(), `pi-grok-theme-hf-${process.pid}-${Date.now()}.json`);
+  registerGrokBuildExtension(fakePi, { settingsPath });
 
   // Trigger session_start
   listeners.session_start({}, fakeCtx);
@@ -248,7 +251,11 @@ test("Header & Footer Component render interface and /grok commands", () => {
   // /grok info / status shows the synced version and cursor color
   notifications = [];
   registeredCommands.grok.handler("info", fakeCtx);
-  assert.ok(notifications.some((n) => n.msg.includes("v0.4.0") && n.msg.includes("Amber Gold")));
+  assert.ok(notifications.some((n) => n.msg.includes("v0.4.1")), "info shows version");
+  assert.ok(notifications.some((n) => n.msg.includes("pi-grok-theme")), "info uses package name");
+  assert.ok(notifications.some((n) => n.msg.includes("Theme:")), "info reports Theme line");
+  assert.ok(!notifications.some((n) => n.msg.includes("GrokNight / GrokDay")), "info must not hard-code GrokNight");
+  assert.ok(!notifications.some((n) => n.msg.includes("Amber Gold")), "info must not hard-code Amber Gold");
 
   // /grok theme lists available themes
   notifications = [];
@@ -262,6 +269,7 @@ test("Header & Footer Component render interface and /grok commands", () => {
 
   // session_shutdown cleans up
   assert.doesNotThrow(() => listeners.session_shutdown({}, fakeCtx));
+  try { fs.unlinkSync(settingsPath); } catch {}
 });
 
 test("session_start shell chrome: setTitle + setHiddenThinkingLabel", () => {
@@ -311,6 +319,63 @@ test("session_start shell chrome: setTitle + setHiddenThinkingLabel", () => {
   assert.equal(titleCalls.length, 1, "session_shutdown must not touch the title");
   assert.equal(labelCalls.length, 1, "session_shutdown must not touch the thinking label");
 });
+
+test("session_start shell chrome honors legacy glyphs via PI_GROK_LEGACY_GLYPHS", () => {
+  const prev = process.env.PI_GROK_LEGACY_GLYPHS;
+  process.env.PI_GROK_LEGACY_GLYPHS = "1";
+  try {
+    // Re-import is unnecessary: getGlyphs() reads env each call.
+    const titleCalls = [];
+    const labelCalls = [];
+    const fakeCtx = {
+      hasUI: true,
+      mode: "tui",
+      cwd: "/home/user/my-project",
+      model: { name: "claude-3.7-sonnet", id: "anthropic/claude-3.7-sonnet", contextWindow: 200000 },
+      getContextUsage: () => undefined,
+      ui: {
+        setHeader: () => {},
+        setFooter: () => {},
+        setWorkingMessage: () => {},
+        notify: () => {},
+        setTitle: (t) => titleCalls.push(t),
+        setHiddenThinkingLabel: (l) => labelCalls.push(l),
+      },
+    };
+    const listeners = {};
+    const fakePi = {
+      on: (evt, handler) => { listeners[evt] = handler; },
+      registerCommand: () => {},
+    };
+    registerGrokBuildExtension(fakePi);
+    listeners.session_start({}, fakeCtx);
+    assert.ok(titleCalls[0].startsWith("# grok"), `legacy brandMark expected, got ${titleCalls[0]}`);
+    assert.ok(!titleCalls[0].includes("⚡"), "legacy mode must not use modern brandMark");
+    assert.equal(labelCalls[0], "> thought");
+  } finally {
+    if (prev === undefined) delete process.env.PI_GROK_LEGACY_GLYPHS;
+    else process.env.PI_GROK_LEGACY_GLYPHS = prev;
+  }
+});
+
+test("unknown /grok subcommand help lists footer", async () => {
+  const notifications = [];
+  let registered;
+  const fakePi = {
+    on: () => {},
+    registerCommand: (_n, def) => { registered = def; },
+  };
+  registerGrokBuildExtension(fakePi);
+  await registered.handler("wat", {
+    hasUI: true,
+    mode: "tui",
+    cwd: process.cwd(),
+    model: { name: "x" },
+    ui: { notify: (msg, type) => notifications.push({ msg, type }) },
+  });
+  assert.ok(notifications.some((n) => n.type === "warning" && n.msg.includes("footer")));
+});
+
 
 test("shortenModelName extended mappings (R1)", () => {
   assert.equal(shortenModelName("gpt-4.1-mini"), "gpt-4.1-mini");

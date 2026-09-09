@@ -1,15 +1,14 @@
 /**
- * status.ts — Working indicator & status controller for pi-grok-build
+ * status.ts — Working indicator & status controller for pi-grok-theme
  *
  * Implements Grok Build-style compact working states:
  * - Single-line minimal indicators: `● working (2.4s)`, `● thinking (1.2s)`, `● running bash...`
  * - Working message filtering and sanitization
  * - Duration tracking and state lifecycle
  *
- * v0.4: the controller exposes activity as a **semantic** badge (state, icon
- * key, tone, label, phase/turn elapsed) with no embedded ANSI; the legacy
- * `formattedText`/`rawText` fields remain as compatibility shims until the
- * migration ticket removes the old rendering path.
+ * v0.4.1: the controller exposes activity as a **semantic** badge (state, icon
+ * key, tone, label, phase/turn elapsed) with no embedded ANSI. Production
+ * chrome styles via the theme adapter only.
  */
 
 import type { GlyphKey } from "./glyphs.ts";
@@ -20,7 +19,6 @@ export type AgentActivityState = "idle" | "thinking" | "streaming" | "running_to
 export type StatusTone = "muted" | "accent" | "thinking" | "warning";
 
 export interface StatusBadge {
-  // --- semantic v0.4 fields (no ANSI) ---
   state: AgentActivityState;
   icon: GlyphKey;
   tone: StatusTone;
@@ -29,28 +27,7 @@ export interface StatusBadge {
   phaseElapsedMs?: number;
   /** Time since the assistant turn began. */
   turnElapsedMs?: number;
-  // --- v0.3 compatibility fields (shim; scheduled for removal in migration) ---
-  dot: string;
-  duration?: string;
-  rawText: string;
-  formattedText: string;
 }
-
-/** ANSI color codes calibrated with GrokNight & TokyoNight palette */
-export const ANSI_COLORS = {
-  reset: "\x1b[0m",
-  bold: "\x1b[1m",
-  dim: "\x1b[38;2;104;110;120m", // #686E78 (readable dim/separator)
-  muted: "\x1b[38;2;136;144;159m", // #88909F (readable comments/secondary text)
-  fg: "\x1b[38;2;225;225;225m", // #E1E1E1 (primary text)
-  fgSecondary: "\x1b[38;2;200;200;200m", // #C8C8C8
-  blue: "\x1b[38;2;122;162;247m", // #7AA2F7 (TokyoNight Blue)
-  cyan: "\x1b[38;2;125;207;255m", // #7DCFFF (TokyoNight Cyan)
-  amber: "\x1b[38;2;224;175;104m", // #E0AF68 (Grok Amber Gold)
-  green: "\x1b[38;2;158;206;106m", // #9ECE6A (TokyoNight Green)
-  purple: "\x1b[38;2;187;154;247m", // #BB9AF7 (TokyoNight Purple)
-  red: "\x1b[38;2;247;118;142m", // #F7768E (TokyoNight Red)
-};
 
 /** Format milliseconds into concise Grok-style duration string (e.g., 1.4s, 12s, 1m24s) */
 export function formatDuration(elapsedMs: number): string {
@@ -176,8 +153,7 @@ export class WorkingStateController {
   }
 
   /**
-   * Semantic activity badge. `formattedText`/`rawText` are v0.3 shims and
-   * carry embedded ANSI; consume `state`/`tone`/`icon`/`label` instead.
+   * Semantic activity badge — no ANSI. Consumers style via chrome tones + glyphs.
    */
   public getBadge(now = Date.now()): StatusBadge {
     if (this.state === "idle") {
@@ -186,49 +162,37 @@ export class WorkingStateController {
         icon: "idleDot",
         tone: "muted",
         label: "idle",
-        dot: "○",
-        rawText: "○ idle",
-        formattedText: `${ANSI_COLORS.muted}○ idle${ANSI_COLORS.reset}`,
       };
     }
 
     const phaseElapsedMs = this.getPhaseElapsedMs(now);
     const turnElapsedMs = this.getTurnElapsedMs(now);
-    // v0.4: the status label shows PHASE time (resets per thinking/streaming/
-    // tool transition); turn time rides the semantic badge for the full preset.
+    // Status label shows PHASE time (resets per thinking/streaming/tool
+    // transition); turn time rides the semantic badge for the full preset.
     const durationStr = formatDuration(phaseElapsedMs ?? 0);
 
     let tone: StatusTone;
     let label: string;
-    // Shim rendering keeps the exact v0.3 per-state dot colors.
-    let shimDotColor: string;
 
     switch (this.state) {
       case "thinking":
         tone = "thinking";
         label = `thinking (${durationStr})`;
-        shimDotColor = ANSI_COLORS.purple;
         break;
       case "running_tool":
         tone = "warning";
         label = `${normalizeToolAction(this.currentTool)} (${durationStr})`;
-        shimDotColor = ANSI_COLORS.amber;
         break;
       case "streaming":
         tone = "accent";
         label = `generating (${durationStr})`;
-        shimDotColor = ANSI_COLORS.cyan;
         break;
       case "working":
       default:
         tone = "accent";
         label = `working (${durationStr})`;
-        shimDotColor = ANSI_COLORS.blue;
         break;
     }
-
-    const rawText = `● ${label}`;
-    const formattedText = `${shimDotColor}●${ANSI_COLORS.reset} ${ANSI_COLORS.muted}${label}${ANSI_COLORS.reset}`;
 
     return {
       state: this.state,
@@ -237,15 +201,12 @@ export class WorkingStateController {
       label,
       phaseElapsedMs,
       turnElapsedMs,
-      dot: "●",
-      duration: durationStr,
-      rawText,
-      formattedText,
     };
   }
 
   /**
    * Filter and compress verbose working messages from Pi into compact Grok tokens.
+   * Duration uses the phase clock so it matches the footer badge.
    */
   public filterWorkingMessage(originalMessage?: string, now = Date.now()): string | undefined {
     // Pass through the host's clear/restore-default contract untouched.
@@ -254,7 +215,7 @@ export class WorkingStateController {
     // Do not fabricate a working label while idle.
     if (this.state === "idle") return originalMessage;
 
-    const elapsed = this.getElapsedMs(now);
+    const elapsed = this.getPhaseElapsedMs(now) ?? 0;
     const durationStr = formatDuration(elapsed);
     const trimmed = originalMessage.trim();
 

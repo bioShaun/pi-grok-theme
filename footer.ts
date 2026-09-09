@@ -1,5 +1,5 @@
 /**
- * footer.ts — Single-line Grok-style metadata footer renderer for pi-grok-build
+ * footer.ts — Single-line Grok-style metadata footer renderer for pi-grok-theme
  *
  * Spec: Section 5.2 Custom Footer Specification
  * - Wide layout:  ~/my-project  main · claude-3.7-sonnet · 48k/200k (24%) · ✻ high · ● working (3.1s)
@@ -451,7 +451,11 @@ export function buildFooterSegments(
 
   // Active status — never deliberately dropped (priority 1).
   if (config.showStatus) {
-    const icon = badge.state === "idle" ? glyphs.idleDot : glyphs.workingDot;
+    const iconGlyph = badge.icon === "spinnerFrames"
+      ? undefined
+      : glyphs[badge.icon];
+    const icon = (typeof iconGlyph === "string" ? iconGlyph : undefined)
+      ?? (badge.state === "idle" ? glyphs.idleDot : glyphs.workingDot);
     push({
       id: "status",
       priority: 1,

@@ -1,5 +1,12 @@
 # Grok Build UI Trait Gap Analysis for pi-grok-theme
 
+> **Archive note (0.4.1):** This document is a **pre-0.4** research archive.
+> Much of its actionable scope shipped in 0.4.0 Adaptive Chrome and the 0.4.1
+> cleanup. Treat [`CHANGELOG.md`](../CHANGELOG.md) and
+> [`docs/v0.4-adaptive-chrome.spec.md`](v0.4-adaptive-chrome.spec.md) as
+> authoritative for what is delivered vs deferred. Keep this file for historical
+> rationale only.
+
 **Date:** 2026-09-02
 **Scope:** Mine the local Grok Build source tree
 (`/home/tcuni-claw/pi/grok-build`, Rust, the official `xai-org/grok-build`

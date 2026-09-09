@@ -1,5 +1,5 @@
 /**
- * render-previews.js — deterministic preview renderer for pi-grok-build
+ * render-previews.js — deterministic preview renderer for pi-grok-theme
  *
  * Produces the release preview assets (docs/previews/*.svg) from the REAL
  * render code path: bundled theme JSON is loaded into genuine Pi `Theme`
@@ -53,36 +53,58 @@ export function loadBundledTheme(name) {
   return new Theme(fgColors, bgColors, "truecolor", { name: json.name });
 }
 
+/**
+ * Fixed preview workspace so committed SVGs are machine-independent.
+ * HOME is set to the fixture root so formatCwd emits `~/pi/pi-grok-theme`,
+ * and the fixture `.git/HEAD` pins the branch to `main`.
+ */
+export const PREVIEW_HOME = path.join(ROOT, "test", "fixtures", "preview-home");
+export const PREVIEW_CWD = path.join(PREVIEW_HOME, "pi", "pi-grok-theme");
+
+/** Ensure the fixture cwd has a fake git HEAD (nested .git cannot be committed). */
+export function ensurePreviewFixture() {
+  const gitHead = path.join(PREVIEW_CWD, ".git", "HEAD");
+  fs.mkdirSync(path.dirname(gitHead), { recursive: true });
+  fs.writeFileSync(gitHead, "ref: refs/heads/main\n");
+}
+
 /** A representative in-turn chrome snapshot: header + wide + narrow footer. */
 export function renderChromeLines(themeName) {
+  ensurePreviewFixture();
   const theme = loadBundledTheme(themeName);
   const now = Date.now();
+  const prevHome = process.env.HOME;
+  process.env.HOME = PREVIEW_HOME;
 
-  const ctx = {
-    hasUI: true,
-    mode: "tui",
-    // A real git repository so branch detection participates in the preview.
-    cwd: process.cwd(),
-    model: {
-      name: "claude-3.7-sonnet",
-      id: "anthropic/claude-3.7-sonnet",
-      contextWindow: 200000,
-    },
-    getContextUsage: () => ({ usedTokens: 48000, contextWindow: 200000, percent: 24 }),
-    thinkingLevel: "high",
-  };
-  const statuses = new Map([["velocity", "19.6 / 23.2 tps"]]);
+  try {
+    const ctx = {
+      hasUI: true,
+      mode: "tui",
+      cwd: PREVIEW_CWD,
+      model: {
+        name: "claude-3.7-sonnet",
+        id: "anthropic/claude-3.7-sonnet",
+        contextWindow: 200000,
+      },
+      getContextUsage: () => ({ usedTokens: 48000, contextWindow: 200000, percent: 24 }),
+      thinkingLevel: "high",
+    };
+    const statuses = new Map([["velocity", "19.6 / 23.2 tps"]]);
 
-  const status = new WorkingStateController();
-  status.startTurn(now);
-  status.startTool("bash", now);
+    const status = new WorkingStateController();
+    status.startTurn(now);
+    status.startTool("bash", now);
 
-  const config = { ...DEFAULT_FOOTER_CONFIG, preset: "auto" };
-  return {
-    header: renderHeader(ctx, 100, { ...DEFAULT_HEADER_OPTIONS, version: VERSION }, theme),
-    wideFooter: renderGrokFooter(ctx, status, 120, statuses, config, theme),
-    narrowFooter: renderGrokFooter(ctx, status, 44, statuses, config, theme),
-  };
+    const config = { ...DEFAULT_FOOTER_CONFIG, preset: "auto" };
+    return {
+      header: renderHeader(ctx, 100, { ...DEFAULT_HEADER_OPTIONS, version: VERSION }, theme),
+      wideFooter: renderGrokFooter(ctx, status, 120, statuses, config, theme),
+      narrowFooter: renderGrokFooter(ctx, status, 44, statuses, config, theme),
+    };
+  } finally {
+    if (prevHome === undefined) delete process.env.HOME;
+    else process.env.HOME = prevHome;
+  }
 }
 
 // ---------------------------------------------------------------------------
