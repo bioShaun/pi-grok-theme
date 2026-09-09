@@ -243,3 +243,28 @@ test("contrast gates: diff colors on their tool-box surfaces", () => {
     }
   }
 });
+
+test("omp themes may contain pythonMode/statusLine* extras; Pi themes must not", () => {
+  const ompDir = path.join(THEMES_DIR, "omp");
+  assert.ok(fs.existsSync(ompDir), "themes/omp/ must exist after build:themes");
+  const ompFiles = fs.readdirSync(ompDir).filter((f) => f.endsWith(".json"));
+  assert.equal(ompFiles.length, 3);
+  for (const file of THEME_FILES) {
+    const pi = loadTheme(file);
+    assert.ok(!("pythonMode" in pi.colors));
+    assert.ok(!Object.keys(pi.colors).some((k) => k.startsWith("statusLine")));
+  }
+  for (const file of ompFiles) {
+    const omp = JSON.parse(fs.readFileSync(path.join(ompDir, file), "utf8"));
+    assert.ok("pythonMode" in omp.colors, `${file} needs pythonMode`);
+    assert.ok(
+      Object.keys(omp.colors).some((k) => k.startsWith("statusLine")),
+      `${file} needs statusLine* keys`,
+    );
+    for (const [key, value] of Object.entries(omp.colors)) {
+      if (value !== "") {
+        assert.ok(value in omp.vars, `omp ${file} colors.${key}=${value} missing from vars`);
+      }
+    }
+  }
+});

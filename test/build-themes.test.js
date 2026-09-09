@@ -34,3 +34,26 @@ test("build:themes script exists and regenerates Pi themes without raw hex in co
     assert.ok(!Object.keys(theme.colors).some((k) => k.startsWith("statusLine")));
   }
 });
+
+const OMP_KEYS = [
+  "pythonMode",
+  "statusLineBg", "statusLineSep", "statusLineModel", "statusLinePath",
+  "statusLineGitClean", "statusLineGitDirty", "statusLineContext", "statusLineSpend",
+  "statusLineStaged", "statusLineDirty", "statusLineUntracked",
+  "statusLineOutput", "statusLineCost", "statusLineSubagents",
+];
+
+test("omp themes include 15 extra keys; Pi themes do not", () => {
+  spawnSync("node", ["scripts/build-themes.js"], { cwd: ROOT });
+  for (const name of ["grok-build", "grok-build-coding", "grok-build-day"]) {
+    const pi = JSON.parse(fs.readFileSync(`themes/${name}.json`, "utf8"));
+    const omp = JSON.parse(fs.readFileSync(`themes/omp/${name}.json`, "utf8"));
+    for (const key of OMP_KEYS) {
+      assert.ok(!(key in pi.colors), `Pi must not contain ${key}`);
+      assert.ok(key in omp.colors, `omp must contain ${key}`);
+      assert.ok(omp.colors[key] in omp.vars, `omp ${key} must alias a var`);
+    }
+  }
+  const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+  assert.ok(!pkg.pi.themes.some((p) => p.includes("/omp/")));
+});
