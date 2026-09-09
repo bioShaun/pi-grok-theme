@@ -11,6 +11,11 @@
 - Named separators: `dot` | `powerline-thin` | `slash` | `ascii`.
 - Settings migration write-back; `/grok footer glyphs|sep` UX.
 
+### R3 — OSC 8 + git counts
+- Path segment wraps OSC 8 `file://` hyperlink (stripped for width + previews).
+- Git staged / dirty / untracked counts via `git status --porcelain=v1` with 3s cache.
+
+
 
 
 ## 0.4.1 — Cleanup (2026-09-09)
