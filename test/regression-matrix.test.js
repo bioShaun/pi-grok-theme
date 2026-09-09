@@ -102,15 +102,19 @@ function assertRowSafe(row, width, label) {
   assertAnsiBalanced(row, label);
 }
 
-/** Balanced ANSI: no partial escape survives stripping. */
+/** Balanced ANSI: no partial escape survives stripping (OSC 8 is allowed). */
 function assertAnsiBalanced(row, label) {
-  const stripped = row.replace(/\x1b\[[0-9;]*m/g, "");
+  const withoutOsc = row.replace(/\x1b\]8;;.*?\x07/g, "");
+  const stripped = withoutOsc.replace(/\x1b\[[0-9;]*m/g, "");
   assert.equal(
     visibleWidth(row),
     visibleWidth(stripped),
     `${label}: ANSI sequences must be balanced after fitting/truncation: ${JSON.stringify(row)}`,
   );
-  assert.ok(!/\x1b(?!\[[0-9;]*m)/.test(row), `${label}: dangling escape sequence: ${JSON.stringify(row)}`);
+  assert.ok(
+    !/\x1b(?!\[[0-9;]*m)/.test(withoutOsc),
+    `${label}: dangling escape sequence: ${JSON.stringify(row)}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
