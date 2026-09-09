@@ -66,6 +66,7 @@ test("package installation contents include every runtime and doc artifact", () 
     "header.ts",
     "render-clock.ts",
     "status.ts",
+    "settings.ts",
     "version.ts",
     "working-indicator.ts",
   ];
@@ -75,7 +76,7 @@ test("package installation contents include every runtime and doc artifact", () 
   }
 
   // Themes, docs, previews.
-  for (const artifact of ["themes", "README.md", "README.zh-CN.md", "CHANGELOG.md", "guidelines.md", "LICENSE", "docs/previews"]) {
+  for (const artifact of ["themes", "README.md", "README.zh-CN.md", "CHANGELOG.md", "guidelines.md", "LICENSE", "SPEC.md", "docs/previews"]) {
     assert.ok(files.has(artifact), `${artifact} missing from package.files`);
   }
   assert.equal(pkg.pi.themes.length, 3, "all three themes are registered in the pi manifest");

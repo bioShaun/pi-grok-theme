@@ -19,7 +19,8 @@ import {
   getGlyphs,
 } from "../glyphs.ts";
 import { createChromeTheme } from "../chrome-theme.ts";
-import { ANSI_COLORS, WorkingStateController } from "../status.ts";
+import { ANSI_COLORS } from "../chrome-theme.ts";
+import { WorkingStateController } from "../status.ts";
 import { visibleWidth } from "../footer.ts";
 
 // ---------------------------------------------------------------------------
@@ -219,9 +220,9 @@ test("status badge is semantic: state, tone, icon, label, phase and turn time", 
   assert.equal(idle.label, "idle");
   assert.equal(idle.phaseElapsedMs, undefined);
   assert.equal(idle.turnElapsedMs, undefined);
-  for (const field of ["formattedText", "rawText"]) {
-    assert.equal(typeof idle[field], "string", `idle badge keeps shim field ${field}`);
-  }
+  assert.equal("formattedText" in idle, false, "ANSI shim fields removed from StatusBadge");
+  assert.equal("rawText" in idle, false);
+  assert.equal("dot" in idle, false);
 
   const t0 = 1_000_000;
   ctrl.startTurn(t0);
@@ -282,4 +283,16 @@ test("phase clock resets on state transitions; repeated streaming updates do not
   ctrl.endTurn(t0 + 6_000);
   assert.equal(ctrl.getPhaseElapsedMs(t0 + 6_100), undefined);
   assert.equal(ctrl.getTurnElapsedMs(t0 + 6_100), undefined);
+});
+
+test("filterWorkingMessage uses phase elapsed (aligned with badge), not whole-turn elapsed", () => {
+  const ctrl = new WorkingStateController();
+  const t0 = 3_000_000;
+  ctrl.startTurn(t0);
+  ctrl.startTool("bash", t0 + 4_000); // phase resets; turn continues
+  const filtered = ctrl.filterWorkingMessage("", t0 + 4_500);
+  const badge = ctrl.getBadge(t0 + 4_500);
+  assert.ok(filtered.includes("0.5s"), `filter should show phase 0.5s, got ${filtered}`);
+  assert.ok(badge.label.includes("0.5s"), `badge label should show phase 0.5s, got ${badge.label}`);
+  assert.ok(!filtered.includes("4.5s"), "filter must not use whole-turn elapsed");
 });

@@ -1,5 +1,5 @@
 /**
- * header.ts — Clean Grok-style workspace header for pi-grok-build
+ * header.ts — Clean Grok-style workspace header for pi-grok-theme
  *
  * Implements a high-contrast, minimalist workspace banner:
  * ╭─ GROK BUILD ────────────────────────────────────────────────────────────╮

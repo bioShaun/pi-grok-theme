@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.4.1 — Cleanup (2026-09-09)
+
+Focused cleanup on top of Adaptive Chrome. No new beauty/UI features.
+
+### User-facing
+
+- **Deterministic release previews** — SVG previews no longer bake the local
+  checkout path; a fixed preview cwd (`~/pi/pi-grok-theme` via fixture home)
+  makes `npm test` / `npm run previews` reproducible on any machine.
+- **Semantic status only** — production status badges drop the ANSI
+  `formattedText` / `rawText` / `dot` shims; chrome uses theme tones + glyphs.
+- **Phase-aligned working messages** — filtered working labels use the same
+  phase clock as the footer badge (not whole-turn elapsed).
+- **Glyph-routed shell chrome** — window title and hidden-thinking label use
+  `brandMark` / `disclosureArrow` so legacy glyph mode stays consistent.
+- **Persisted footer/header prefs** — `/grok footer` preset and `/grok header`
+  toggle survive across sessions in `~/.pi/agent/pi-grok-theme.json` (defaults
+  remain `auto` / header off).
+- **Honest `/grok info`** — reports the active theme and
+  `resolveCursorPolicy` result instead of hard-coded Amber Gold / GrokNight.
+- **Help copy** — unknown-subcommand usage lists `footer`; user-visible
+  strings say `pi-grok-theme` (package name unchanged).
+- **Docs** — root `SPEC.md` is a short stub pointing at the authoritative
+  docs; `docs/grok-build-ui-gaps.md` marked as a pre-0.4 archive.
+
+### Notes
+
+- Do not restore grok-tps. Segment fitting, RenderClock ownership, and the
+  theme-native chrome adapter are unchanged.
+
 ## 0.4.0 — Adaptive Chrome (2026-09-03)
 
 Theme-native adaptive chrome for the footer, header, status badge, and

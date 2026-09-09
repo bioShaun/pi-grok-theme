@@ -4,6 +4,9 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import os from "node:os";
+import path from "node:path";
+import fs from "node:fs";
 
 import {
   buildFooterSegments,
@@ -191,10 +194,14 @@ test("/grok footer reports the current preset and switches immediately", () => {
     },
   };
 
+  const homeCwd = path.join(os.homedir(), "pi", "pi-grok-theme");
+  const settingsPath = path.join(os.tmpdir(), `pi-grok-theme-test-${process.pid}-${Date.now()}.json`);
+  try { fs.unlinkSync(settingsPath); } catch {}
+
   const fakeCtx = {
     hasUI: true,
     mode: "tui",
-    cwd: process.cwd(),
+    cwd: homeCwd,
     model: { name: "claude-3.7-sonnet", id: "anthropic/claude-3.7-sonnet", contextWindow: 200000 },
     getContextUsage: () => ({ usedTokens: 48000, contextWindow: 200000, percent: 24 }),
     ui: {
@@ -207,7 +214,7 @@ test("/grok footer reports the current preset and switches immediately", () => {
     },
   };
 
-  registerGrokBuildExtension(fakePi);
+  registerGrokBuildExtension(fakePi, { settingsPath });
 
   listeners.session_start({}, fakeCtx);
   const footer = footerFactory(
@@ -228,7 +235,7 @@ test("/grok footer reports the current preset and switches immediately", () => {
   // Switch to minimal — applies immediately.
   notifications.length = 0;
   registered_grok.handler("footer minimal", fakeCtx);
-  assert.ok(notifications.some((n) => n.msg.includes("footer preset: minimal")));
+  assert.ok(notifications.some((n) => n.msg.includes("footer preset: minimal") && n.msg.includes("pi-grok-theme")));
   assert.ok(renderRequests > 0, "preset change requests a render");
 
   const minimalRow = footer.render(120)[0];

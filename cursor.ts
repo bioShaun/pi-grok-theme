@@ -1,5 +1,5 @@
 /**
- * cursor.ts — OSC 12 terminal cursor color synchronization for pi-grok-build
+ * cursor.ts — OSC 12 terminal cursor color synchronization for pi-grok-theme
  *
  * Grok Build's signature visual: the warm amber cursor.
  * Unlike theme JSON colors, cursor color is set at runtime via OSC 12

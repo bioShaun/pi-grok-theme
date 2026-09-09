@@ -1,5 +1,5 @@
 /**
- * glyphs.ts — capability-aware glyph vocabulary for pi-grok-build chrome
+ * glyphs.ts — capability-aware glyph vocabulary for pi-grok-theme chrome
  *
  * One table owns every fixed-width symbol the chrome renders (v0.4 spec §4.7).
  * Renderers must never inline Unicode literals; they consume a GlyphSet so
