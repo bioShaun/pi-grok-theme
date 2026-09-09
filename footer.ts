@@ -17,12 +17,18 @@ import {
   truncateToWidth as tuiTruncateToWidth,
 } from "@earendil-works/pi-tui";
 import { createChromeTheme, type ChromeTheme, type ChromeTone } from "./chrome-theme.ts";
-import { getGlyphs, type GlyphSet } from "./glyphs.ts";
+import {
+  getGlyphs,
+  getGlyphsForDensity,
+  resolveGlyphDensity,
+  type GlyphDensity,
+  type GlyphSet,
+} from "./glyphs.ts";
 import { formatDuration, type WorkingStateController } from "./status.ts";
 
 export interface FooterConfig {
   separator: string; // default " · "
-  preset: FooterPreset; // default "auto"
+  preset: FooterPreset; // default "default"
   showCwd: boolean;
   showGit: boolean;
   showModel: boolean;
@@ -30,15 +36,32 @@ export interface FooterConfig {
   showThinking: boolean;
   showStatus: boolean;
   compactThreshold: number; // width under which compact variants are preferred (80)
+  /** Resolved glyph density applied by the render path (default unicode via settings). */
+  glyphDensity?: GlyphDensity;
 }
 
-export type FooterPreset = "auto" | "minimal" | "full";
+export type FooterPreset = "minimal" | "default" | "full";
 
-export const FOOTER_PRESETS: readonly FooterPreset[] = ["auto", "minimal", "full"];
+export const FOOTER_PRESETS: readonly FooterPreset[] = ["minimal", "default", "full"];
+
+export type SeparatorStyle = "dot" | "powerline-thin" | "slash" | "ascii";
+
+export const SEPARATOR_STYLES: readonly SeparatorStyle[] = ["dot", "powerline-thin", "slash", "ascii"];
+
+export const SEPARATOR_STYLE_LITERALS: Record<SeparatorStyle, string> = {
+  dot: " · ",
+  "powerline-thin": " \uE0B1 ",
+  slash: " / ",
+  ascii: " | ",
+};
+
+export function separatorForStyle(style: SeparatorStyle): string {
+  return SEPARATOR_STYLE_LITERALS[style];
+}
 
 export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
   separator: " · ",
-  preset: "auto",
+  preset: "default",
   showCwd: true,
   showGit: true,
   showModel: true,
@@ -46,6 +69,7 @@ export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
   showThinking: true,
   showStatus: true,
   compactThreshold: 80,
+  glyphDensity: "unicode",
 };
 
 /**
@@ -348,11 +372,11 @@ export function buildFooterSegments(
   chrome: ChromeTheme,
   glyphs: ReturnType<typeof getGlyphs>,
 ): FooterSegment[] {
-  const preset = config.preset ?? "auto";
+  const preset = config.preset ?? "default";
   const badge = statusController.getBadge();
   const want = (id: string): boolean => {
     if (preset === "minimal") return id === "model" || id === "context" || id === "status";
-    return true; // auto and full include every eligible segment
+    return true; // default and full include every eligible segment
   };
   const push = (segment: FooterSegment): void => {
     if (want(segment.id) && segment.wide) segments.push(segment);
@@ -502,7 +526,8 @@ export function renderGrokFooter(
   if (width <= 0) return [""];
 
   const chrome = createChromeTheme(theme);
-  const glyphs = getGlyphs();
+  const density = resolveGlyphDensity(config.glyphDensity ?? "unicode");
+  const glyphs = getGlyphsForDensity(density);
   const sep = chrome.fg("dim", config.separator);
 
   const segments = buildFooterSegments(ctx, statusController, extensionStatuses, config, chrome, glyphs);

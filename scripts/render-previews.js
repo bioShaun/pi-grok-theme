@@ -95,7 +95,7 @@ export function renderChromeLines(themeName) {
     status.startTurn(now);
     status.startTool("bash", now);
 
-    const config = { ...DEFAULT_FOOTER_CONFIG, preset: "auto" };
+    const config = { ...DEFAULT_FOOTER_CONFIG, preset: "default" };
     return {
       header: renderHeader(ctx, 100, { ...DEFAULT_HEADER_OPTIONS, version: VERSION }, theme),
       wideFooter: renderGrokFooter(ctx, status, 120, statuses, config, theme),
