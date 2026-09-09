@@ -6,7 +6,8 @@
   "scripts": {
     "test": "node --test \"test/**/*.js\"",
     "typecheck": "tsc --noEmit",
-    "previews": "node scripts/render-previews.js"
+    "previews": "node scripts/render-previews.js",
+    "build:themes": "node scripts/build-themes.js"
   },
   "main": "./index.ts",
   "exports": {

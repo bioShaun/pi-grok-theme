@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### R1 — vars-first themes
+- Shared palette + overlays generate `themes/grok-build*.json` via `npm run build:themes` (no footer behavior change).
+
+
 ## 0.4.1 — Cleanup (2026-09-09)
 
 Focused cleanup on top of Adaptive Chrome. No new beauty/UI features.
