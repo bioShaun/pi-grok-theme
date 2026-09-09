@@ -121,3 +121,53 @@ export function detectGlyphMode(
 export function getGlyphs(mode: GlyphMode = detectGlyphMode()): GlyphSet {
   return GLYPH_SETS[mode];
 }
+
+// ---------------------------------------------------------------------------
+// Glyph density (v0.5): unicode | nerd | ascii
+// ---------------------------------------------------------------------------
+
+export type GlyphDensity = "unicode" | "nerd" | "ascii";
+
+export const GLYPH_DENSITIES: readonly GlyphDensity[] = ["unicode", "nerd", "ascii"];
+
+/**
+ * Nerd Font marks for branch/folder; other keys reuse the modern (unicode) set.
+ * nf-pl-branch U+E0A0, nf-fa-folder U+F07B. Spinner keeps modern Braille.
+ */
+export const NERD_GLYPHS: GlyphSet = {
+  ...MODERN_GLYPHS,
+  branchMark: "\uE0A0", // nf-pl-branch
+  folderMark: "\uF07B", // nf-fa-folder
+};
+
+/**
+ * Resolve density from settings + capability.
+ * - PI_GROK_LEGACY_GLYPHS=1 always forces ascii (wins over settings nerd).
+ * - nerd only when settings explicitly request it.
+ * - undefined settings → unicode (never auto-select nerd).
+ */
+export function resolveGlyphDensity(
+  settingsDensity: GlyphDensity | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+): GlyphDensity {
+  if (env.PI_GROK_LEGACY_GLYPHS === "1") return "ascii";
+  if (settingsDensity === "nerd") return "nerd";
+  if (settingsDensity === "ascii") return "ascii";
+  if (settingsDensity === "unicode") return "unicode";
+  // No explicit settings: map legacy capability detection to ascii/unicode.
+  const mode = detectGlyphMode(env, platform);
+  return mode === "legacy" ? "ascii" : "unicode";
+}
+
+export function getGlyphsForDensity(density: GlyphDensity): GlyphSet {
+  switch (density) {
+    case "nerd":
+      return NERD_GLYPHS;
+    case "ascii":
+      return LEGACY_GLYPHS;
+    case "unicode":
+    default:
+      return MODERN_GLYPHS;
+  }
+}
