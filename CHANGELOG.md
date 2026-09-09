@@ -5,6 +5,13 @@
 ### R1 — vars-first themes
 - Shared palette + overlays generate `themes/grok-build*.json` via `npm run build:themes` (no footer behavior change).
 
+### R2 — footer visual
+- Rename footer preset `auto` → `default` (legacy typed `auto` still accepted).
+- Glyph density: `unicode` | `nerd` | `ascii` (`nerd` opt-in only).
+- Named separators: `dot` | `powerline-thin` | `slash` | `ascii`.
+- Settings migration write-back; `/grok footer glyphs|sep` UX.
+
+
 
 ## 0.4.1 — Cleanup (2026-09-09)
 

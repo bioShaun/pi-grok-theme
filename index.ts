@@ -12,7 +12,17 @@
 
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
-import { installFooter, getGitBranch, type FooterConfig, type FooterPreset, DEFAULT_FOOTER_CONFIG, FOOTER_PRESETS } from "./footer.ts";
+import {
+  installFooter,
+  getGitBranch,
+  type FooterConfig,
+  type FooterPreset,
+  type SeparatorStyle,
+  DEFAULT_FOOTER_CONFIG,
+  FOOTER_PRESETS,
+  SEPARATOR_STYLES,
+  separatorForStyle,
+} from "./footer.ts";
 import { installHeader } from "./header.ts";
 import { WorkingStateController } from "./status.ts";
 import { createChromeTheme } from "./chrome-theme.ts";
@@ -20,7 +30,7 @@ import { RenderClock, type RenderClockOptions } from "./render-clock.ts";
 import { applyCursorPolicy, resetCursorColor, resolveCursorPolicy } from "./cursor.ts";
 import { VERSION } from "./version.ts";
 import { applyWorkingIndicator, restoreWorkingIndicator } from "./working-indicator.ts";
-import { getGlyphs } from "./glyphs.ts";
+import { getGlyphs, GLYPH_DENSITIES, type GlyphDensity } from "./glyphs.ts";
 import { loadSettings, saveSettings, type GrokThemeSettings } from "./settings.ts";
 
 function readThinkingLevel(ctx: ExtensionContext): string | undefined {
@@ -67,10 +77,15 @@ export default function registerGrokBuildExtension(
   let showHeader = false;
   const settingsPath = options.settingsPath;
 
+  let glyphDensity: GlyphDensity = "unicode";
+  let separatorStyle: SeparatorStyle = "dot";
+
   const persistPrefs = (): void => {
     const payload: GrokThemeSettings = {
       footerPreset: config.preset,
       showHeader,
+      glyphDensity,
+      separatorStyle,
     };
     saveSettings(payload, settingsPath);
   };
@@ -79,6 +94,10 @@ export default function registerGrokBuildExtension(
     const loaded = loadSettings(settingsPath);
     config.preset = loaded.footerPreset;
     showHeader = loaded.showHeader;
+    glyphDensity = loaded.glyphDensity;
+    separatorStyle = loaded.separatorStyle;
+    config.glyphDensity = glyphDensity;
+    config.separator = separatorForStyle(separatorStyle);
   };
 
   // Only this module owns timers (spec §5.3): one coalescing render clock
@@ -278,11 +297,47 @@ export default function registerGrokBuildExtension(
     // suggests — switching themes as a preview side effect is unsupported and
     // never happens here (spec §4.6).
     getArgumentCompletions: (argumentPrefix) => {
+      const raw = (argumentPrefix ?? "").trim().toLowerCase();
+      const parts = raw.split(/\s+/).filter(Boolean);
+
+      // /grok footer <preset|glyphs|sep> …
+      if (parts[0] === "footer") {
+        const sub = parts.slice(1);
+        if (sub[0] === "glyphs") {
+          const densPrefix = sub[1] ?? "";
+          const items = GLYPH_DENSITIES
+            .filter((d) => d.startsWith(densPrefix))
+            .map((d) => ({ value: `footer glyphs ${d}`, label: d, description: "glyph density" }));
+          return items.length > 0 ? items : null;
+        }
+        if (sub[0] === "sep") {
+          const sepPrefix = sub[1] ?? "";
+          const items = SEPARATOR_STYLES
+            .filter((s) => s.startsWith(sepPrefix))
+            .map((s) => ({ value: `footer sep ${s}`, label: s, description: "separator style" }));
+          return items.length > 0 ? items : null;
+        }
+        const footerItems = [
+          ...FOOTER_PRESETS.map((p) => ({ value: `footer ${p}`, label: p, description: "footer preset" })),
+          { value: "footer glyphs", label: "glyphs", description: "glyph density unicode|nerd|ascii" },
+          { value: "footer sep", label: "sep", description: "separator style" },
+        ];
+        const rest = raw.slice("footer".length).trim();
+        const filtered = rest
+          ? footerItems.filter(
+              (item) =>
+                item.label.startsWith(rest) ||
+                item.value.toLowerCase().startsWith(`footer ${rest}`),
+            )
+          : footerItems;
+        return filtered.length > 0 ? filtered : null;
+      }
+
       const aliasItems = [
         { value: "coding", label: "coding", description: "grok-build-coding (dark, recommended)" },
         { value: "minimal", label: "minimal", description: "grok-build (dark, monochrome)" },
         { value: "day", label: "day", description: "grok-build-day (light)" },
-        { value: "footer", label: "footer", description: "footer presets: auto, minimal, full" },
+        { value: "footer", label: "footer", description: "footer preset / glyphs / sep" },
         { value: "header", label: "header", description: "toggle the workspace header" },
         { value: "info", label: "info", description: "extension status" },
       ];
@@ -293,9 +348,8 @@ export default function registerGrokBuildExtension(
         description: "installed theme",
       }));
       const all = [...aliasItems, ...themeItems];
-      const prefix = (argumentPrefix ?? "").trim().toLowerCase();
-      const filtered = prefix
-        ? all.filter((item) => item.value.toLowerCase().startsWith(prefix))
+      const filtered = raw
+        ? all.filter((item) => item.value.toLowerCase().startsWith(raw))
         : all;
       return filtered.length > 0 ? filtered : null;
     },
@@ -428,32 +482,74 @@ export default function registerGrokBuildExtension(
       }
 
       if (sub === "footer" || sub.startsWith("footer ")) {
-        const presetArg = sub.replace(/^footer/, "").trim() as FooterPreset;
-        if (!presetArg) {
-          // Report the current preset and the available values.
+        const rest = sub.replace(/^footer/, "").trim();
+        const parts = rest.split(/\s+/).filter(Boolean);
+
+        if (parts.length === 0) {
           const presetDescriptions: Record<FooterPreset, string> = {
-            auto: "responsive hierarchy with all eligible segments (default)",
+            default: "responsive hierarchy with all eligible segments",
             minimal: "model · context · status",
             full: "cwd · branch · model · context · thinking · turn time · extension statuses · status",
           };
           const msg = [
-            chrome.bold(chrome.fg("accent", "Grok footer presets")),
-            `${chrome.fg("muted", "Current:")} ${config.preset} ${chrome.fg("dim", `(${presetDescriptions[config.preset]})`)}`,
-            `${chrome.fg("muted", "Available:")} ${FOOTER_PRESETS.join(", ")}`,
-            `${chrome.fg("dim", "Switch with /grok footer <preset>; persisted across sessions.")}`,
+            chrome.bold(chrome.fg("accent", "Grok footer")),
+            `${chrome.fg("muted", "Current:")} preset=${config.preset} ${chrome.fg("dim", `(${presetDescriptions[config.preset]})`)}`,
+            `${chrome.fg("muted", "Glyphs:")} ${glyphDensity}`,
+            `${chrome.fg("muted", "Separator:")} ${separatorStyle}`,
+            `${chrome.fg("muted", "Presets:")} ${FOOTER_PRESETS.join(", ")}`,
+            `${chrome.fg("dim", "Usage: /grok footer <minimal|default|full>")}`,
+            `${chrome.fg("dim", "       /grok footer glyphs <unicode|nerd|ascii>")}`,
+            `${chrome.fg("dim", "       /grok footer sep <dot|powerline-thin|slash|ascii>")}`,
           ].join("\n");
           notify(msg, "info");
           return;
         }
 
-        if (!FOOTER_PRESETS.includes(presetArg)) {
-          notify(`Unknown footer preset "${presetArg}". Available: ${FOOTER_PRESETS.join(", ")}`, "warning");
+        if (parts[0] === "glyphs") {
+          const densityArg = parts[1] as GlyphDensity | undefined;
+          if (!densityArg || !(GLYPH_DENSITIES as readonly string[]).includes(densityArg)) {
+            notify(
+              `Unknown glyph density "${densityArg ?? ""}". Available: ${GLYPH_DENSITIES.join(", ")}`,
+              "warning",
+            );
+            return;
+          }
+          glyphDensity = densityArg;
+          config.glyphDensity = glyphDensity;
+          persistPrefs();
+          footerHandle?.requestRender();
+          notify(`pi-grok-theme footer glyphs: ${densityArg}`, "info");
           return;
         }
 
-        config.preset = presetArg;
+        if (parts[0] === "sep") {
+          const styleArg = parts[1] as SeparatorStyle | undefined;
+          if (!styleArg || !(SEPARATOR_STYLES as readonly string[]).includes(styleArg)) {
+            notify(
+              `Unknown separator style "${styleArg ?? ""}". Available: ${SEPARATOR_STYLES.join(", ")}`,
+              "warning",
+            );
+            return;
+          }
+          separatorStyle = styleArg;
+          config.separator = separatorForStyle(styleArg);
+          persistPrefs();
+          footerHandle?.requestRender();
+          notify(`pi-grok-theme footer sep: ${styleArg}`, "info");
+          return;
+        }
+
+        // Preset: accept legacy "auto" as alias for "default" (one release).
+        const rawPreset = parts[0] ?? "";
+        const presetArg = rawPreset === "auto" ? "default" : rawPreset;
+        if (!(FOOTER_PRESETS as readonly string[]).includes(presetArg)) {
+          notify(`Unknown footer preset "${rawPreset}". Available: ${FOOTER_PRESETS.join(", ")}`, "warning");
+          return;
+        }
+
+        config.preset = presetArg as FooterPreset;
         persistPrefs();
-        footerHandle?.requestRender(); // apply immediately
+        footerHandle?.requestRender();
         notify(`pi-grok-theme footer preset: ${presetArg}`, "info");
         return;
       }
