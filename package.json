@@ -1,12 +1,13 @@
 {
   "name": "pi-grok-theme",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Terminal-native workspace theme and presentation UI extension for Pi Coding Agent, inspired by xAI Grok Build.",
   "type": "module",
   "scripts": {
     "test": "node --test \"test/**/*.js\"",
     "typecheck": "tsc --noEmit",
-    "previews": "node scripts/render-previews.js"
+    "previews": "node scripts/render-previews.js",
+    "build:themes": "node scripts/build-themes.js"
   },
   "main": "./index.ts",
   "exports": {

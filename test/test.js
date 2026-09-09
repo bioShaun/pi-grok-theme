@@ -6,6 +6,7 @@ import os from "node:os";
 import registerGrokBuildExtension from "../index.ts";
 import { renderHeader } from "../header.ts";
 import { renderGrokFooter, visibleWidth, truncateToWidth, shortenModelName, getGitBranch, DEFAULT_FOOTER_CONFIG } from "../footer.ts";
+import { VERSION } from "../version.ts";
 import { WorkingStateController } from "../status.ts";
 import { hexToOsc12, setCursorColor, resetCursorColor } from "../cursor.ts";
 
@@ -256,7 +257,7 @@ test("Header & Footer Component render interface and /grok commands", () => {
   // /grok info / status shows the synced version and cursor color
   notifications = [];
   registeredCommands.grok.handler("info", fakeCtx);
-  assert.ok(notifications.some((n) => n.msg.includes("v0.4.1")), "info shows version");
+  assert.ok(notifications.some((n) => n.msg.includes(`v${VERSION}`)), "info shows version");
   assert.ok(notifications.some((n) => n.msg.includes("pi-grok-theme")), "info uses package name");
   assert.ok(notifications.some((n) => n.msg.includes("Theme:")), "info reports Theme line");
   assert.ok(!notifications.some((n) => n.msg.includes("GrokNight / GrokDay")), "info must not hard-code GrokNight");

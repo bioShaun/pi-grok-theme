@@ -38,7 +38,7 @@ test("committed preview SVGs byte-match a fresh deterministic render", () => {
       background: themeJson.vars.terminalBg,
       sections: [
         { caption: `${name} — header (opt-in via /grok header)`, lines: chrome.header },
-        { caption: "footer — wide layout (auto preset, 120 cols)", lines: chrome.wideFooter },
+        { caption: "footer — wide layout (default preset, 120 cols)", lines: chrome.wideFooter },
         { caption: "footer — narrow layout (44 cols): compact model + context %", lines: chrome.narrowFooter },
       ],
     });

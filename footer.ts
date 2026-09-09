@@ -11,18 +11,25 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { spawnSync } from "node:child_process";
 import type { ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import {
   visibleWidth as tuiVisibleWidth,
   truncateToWidth as tuiTruncateToWidth,
 } from "@earendil-works/pi-tui";
 import { createChromeTheme, type ChromeTheme, type ChromeTone } from "./chrome-theme.ts";
-import { getGlyphs, type GlyphSet } from "./glyphs.ts";
+import {
+  getGlyphs,
+  getGlyphsForDensity,
+  resolveGlyphDensity,
+  type GlyphDensity,
+  type GlyphSet,
+} from "./glyphs.ts";
 import { formatDuration, type WorkingStateController } from "./status.ts";
 
 export interface FooterConfig {
   separator: string; // default " · "
-  preset: FooterPreset; // default "auto"
+  preset: FooterPreset; // default "default"
   showCwd: boolean;
   showGit: boolean;
   showModel: boolean;
@@ -30,15 +37,32 @@ export interface FooterConfig {
   showThinking: boolean;
   showStatus: boolean;
   compactThreshold: number; // width under which compact variants are preferred (80)
+  /** Resolved glyph density applied by the render path (default unicode via settings). */
+  glyphDensity?: GlyphDensity;
 }
 
-export type FooterPreset = "auto" | "minimal" | "full";
+export type FooterPreset = "minimal" | "default" | "full";
 
-export const FOOTER_PRESETS: readonly FooterPreset[] = ["auto", "minimal", "full"];
+export const FOOTER_PRESETS: readonly FooterPreset[] = ["minimal", "default", "full"];
+
+export type SeparatorStyle = "dot" | "powerline-thin" | "slash" | "ascii";
+
+export const SEPARATOR_STYLES: readonly SeparatorStyle[] = ["dot", "powerline-thin", "slash", "ascii"];
+
+export const SEPARATOR_STYLE_LITERALS: Record<SeparatorStyle, string> = {
+  dot: " · ",
+  "powerline-thin": " \uE0B1 ",
+  slash: " / ",
+  ascii: " | ",
+};
+
+export function separatorForStyle(style: SeparatorStyle): string {
+  return SEPARATOR_STYLE_LITERALS[style];
+}
 
 export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
   separator: " · ",
-  preset: "auto",
+  preset: "default",
   showCwd: true,
   showGit: true,
   showModel: true,
@@ -46,6 +70,7 @@ export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
   showThinking: true,
   showStatus: true,
   compactThreshold: 80,
+  glyphDensity: "unicode",
 };
 
 /**
@@ -193,62 +218,198 @@ export function formatCwd(cwd: string): string {
   return path.basename(cwd);
 }
 
-/** Fast, cached Git branch detection */
-let cachedBranch: { branch: string; expiresAt: number; cwd: string } | null = null;
 
-export function getGitBranch(cwd: string): string | undefined {
-  const now = Date.now();
-  if (cachedBranch && cachedBranch.cwd === cwd && cachedBranch.expiresAt > now) {
-    return cachedBranch.branch || undefined;
+/** Build a file:// URL for an absolute path; soft-fail → undefined. */
+export function toFileUrl(absPath: string): string | undefined {
+  try {
+    if (!absPath || !path.isAbsolute(absPath)) return undefined;
+    const normalized = absPath.replaceAll("\\", "/");
+    const parts = normalized.split("/");
+    const encoded = parts
+      .map((p, i) => (i === 0 && p === "" ? "" : encodeURIComponent(p)))
+      .join("/");
+    return `file://${encoded.startsWith("/") ? encoded : `/${encoded}`}`;
+  } catch {
+    return undefined;
   }
+}
 
-  let current = path.resolve(cwd);
-  let branch: string | undefined;
+const OSC8_RE = /\x1b\]8;;.*?\x07/g;
 
-  const readBranchFromHead = (gitDir: string): string | undefined => {
-    const headPath = path.join(gitDir, "HEAD");
-    if (!fs.existsSync(headPath)) return undefined;
-    const content = fs.readFileSync(headPath, "utf8").trim();
-    if (content.startsWith("ref: refs/heads/")) {
-      return content.replace("ref: refs/heads/", "");
+/** Wrap visible label in an OSC 8 hyperlink (BEL-terminated). */
+export function wrapOsc8Hyperlink(uri: string, label: string): string {
+  return `\x1b]8;;${uri}\x07${label}\x1b]8;;\x07`;
+}
+
+/** Strip OSC 8 sequences for width math / preview snapshots. */
+export function stripOsc8(str: string): string {
+  return (str ?? "").replace(OSC8_RE, "");
+}
+
+/** Git footer info: branch + staged/dirty/untracked counts (3s TTL cache). */
+export interface GitFooterInfo {
+  branch?: string;
+  staged: number;
+  dirty: number;
+  untracked: number;
+}
+
+let cachedGit: {
+  cwd: string;
+  expiresAt: number;
+  branch: string;
+  staged: number;
+  dirty: number;
+  untracked: number;
+} | null = null;
+
+export function clearGitFooterCache(): void {
+  cachedGit = null;
+}
+
+/**
+ * Parse `git status --porcelain=v1 -b` stdout.
+ * staged = index column non-space and not `?`;
+ * dirty = worktree column modified (M/D/etc, not space/?) ;
+ * untracked = `??`.
+ */
+export function parseGitPorcelain(porcelainStdout: string): {
+  staged: number;
+  dirty: number;
+  untracked: number;
+} {
+  let staged = 0;
+  let dirty = 0;
+  let untracked = 0;
+  for (const line of porcelainStdout.split("\n")) {
+    if (!line || line.startsWith("##")) continue;
+    if (line.startsWith("??")) {
+      untracked += 1;
+      continue;
     }
-    // Detached HEAD
-    return content.length >= 7 ? content.slice(0, 7) : undefined;
-  };
+    if (line.length < 2) continue;
+    const index = line[0] ?? " ";
+    const work = line[1] ?? " ";
+    if (index !== " " && index !== "?") staged += 1;
+    if (work !== " " && work !== "?") dirty += 1;
+  }
+  return { staged, dirty, untracked };
+}
 
+function readBranchFromHead(gitDir: string): string | undefined {
+  const headPath = path.join(gitDir, "HEAD");
+  if (!fs.existsSync(headPath)) return undefined;
+  const content = fs.readFileSync(headPath, "utf8").trim();
+  if (content.startsWith("ref: refs/heads/")) {
+    return content.replace("ref: refs/heads/", "");
+  }
+  return content.length >= 7 ? content.slice(0, 7) : undefined;
+}
+
+/** Locate .git (dir or gitdir file) and the work-tree root above cwd. */
+function discoverGit(cwd: string): { gitDir: string; workTree: string; branch: string } | undefined {
+  let current = path.resolve(cwd);
   try {
     while (true) {
       const dotGitPath = path.join(current, ".git");
       if (fs.existsSync(dotGitPath)) {
         if (fs.statSync(dotGitPath).isDirectory()) {
-          branch = readBranchFromHead(dotGitPath);
-        } else {
-          // Worktree / submodule: `.git` is a file pointing at the real gitdir.
-          const gitdir = /^gitdir:\s*(.+)$/m.exec(fs.readFileSync(dotGitPath, "utf8"))?.[1]?.trim();
-          if (gitdir) {
-            const resolved = path.isAbsolute(gitdir)
-              ? gitdir
-              : path.resolve(current, gitdir);
-            branch = readBranchFromHead(resolved);
-          }
+          const branch = readBranchFromHead(dotGitPath) ?? "";
+          return { gitDir: dotGitPath, workTree: current, branch };
         }
-        break;
+        const gitdir = /^gitdir:\s*(.+)$/m.exec(fs.readFileSync(dotGitPath, "utf8"))?.[1]?.trim();
+        if (gitdir) {
+          const resolved = path.isAbsolute(gitdir) ? gitdir : path.resolve(current, gitdir);
+          const branch = readBranchFromHead(resolved) ?? "";
+          return { gitDir: resolved, workTree: current, branch };
+        }
+        return undefined;
       }
       const parent = path.dirname(current);
       if (parent === current) break;
       current = parent;
     }
   } catch {
-    // Fallback quietly on permission or filesystem errors
+    // Fallback quietly
+  }
+  return undefined;
+}
+
+export function getGitFooterInfo(cwd: string): GitFooterInfo {
+  const now = Date.now();
+  if (cachedGit && cachedGit.cwd === cwd && cachedGit.expiresAt > now) {
+    return {
+      branch: cachedGit.branch || undefined,
+      staged: cachedGit.staged,
+      dirty: cachedGit.dirty,
+      untracked: cachedGit.untracked,
+    };
   }
 
-  cachedBranch = {
+  const discovered = discoverGit(cwd);
+  let branch = discovered?.branch ?? "";
+  let staged = 0;
+  let dirty = 0;
+  let untracked = 0;
+
+  // Pin --git-dir/--work-tree so a fixture .git cannot leak into a parent repo.
+  if (discovered) {
+    try {
+      const result = spawnSync(
+        "git",
+        [
+          `--git-dir=${discovered.gitDir}`,
+          `--work-tree=${discovered.workTree}`,
+          "status",
+          "--porcelain=v1",
+          "-b",
+        ],
+        {
+          cwd: discovered.workTree,
+          encoding: "utf8",
+          timeout: 500,
+          env: { ...process.env, GIT_OPTIONAL_LOCKS: "1" },
+        },
+      );
+      if (result.status === 0 && typeof result.stdout === "string") {
+        const counts = parseGitPorcelain(result.stdout);
+        staged = counts.staged;
+        dirty = counts.dirty;
+        untracked = counts.untracked;
+        const header = result.stdout.split("\n").find((l) => l.startsWith("## "));
+        if (header) {
+          // Branch names may contain dots (e.g. v0.5-omp-style-polish).
+          const m = /^## (\S+?)(?:\.\.\.|$)/.exec(header);
+          if (m?.[1] && m[1] !== "HEAD" && !m[1].startsWith("(")) {
+            branch = m[1];
+          }
+        }
+      }
+    } catch {
+      // counts stay 0; branch from fs when possible
+    }
+  }
+
+  cachedGit = {
     cwd,
-    branch: branch ?? "",
-    expiresAt: now + 3000, // 3-second cache TTL
+    branch,
+    staged,
+    dirty,
+    untracked,
+    expiresAt: now + 3000,
   };
 
-  return branch;
+  return {
+    branch: branch || undefined,
+    staged,
+    dirty,
+    untracked,
+  };
+}
+
+/** Thin wrapper: branch only (header / title callers). */
+export function getGitBranch(cwd: string): string | undefined {
+  return getGitFooterInfo(cwd).branch;
 }
 
 /** Simplify model identifier for compact display */
@@ -348,11 +509,11 @@ export function buildFooterSegments(
   chrome: ChromeTheme,
   glyphs: ReturnType<typeof getGlyphs>,
 ): FooterSegment[] {
-  const preset = config.preset ?? "auto";
+  const preset = config.preset ?? "default";
   const badge = statusController.getBadge();
   const want = (id: string): boolean => {
     if (preset === "minimal") return id === "model" || id === "context" || id === "status";
-    return true; // auto and full include every eligible segment
+    return true; // default and full include every eligible segment
   };
   const push = (segment: FooterSegment): void => {
     if (want(segment.id) && segment.wide) segments.push(segment);
@@ -360,27 +521,35 @@ export function buildFooterSegments(
 
   const segments: FooterSegment[] = [];
 
-  // CWD — leading block, first standard segment removed (priority 8).
+  // CWD — leading block with OSC 8 hyperlink when possible (priority 8).
   if (config.showCwd && preset !== "minimal") {
     const cwdFormatted = formatCwd(ctx.cwd);
+    const abs = path.resolve(ctx.cwd);
+    const fileUrl = toFileUrl(abs);
+    const label = chrome.fg("muted", cwdFormatted);
+    const wide = fileUrl ? wrapOsc8Hyperlink(fileUrl, label) : label;
     push({
       id: "cwd",
       priority: 8,
       required: false,
-      wide: chrome.fg("muted", cwdFormatted),
+      wide,
       position: "left",
     });
   }
 
-  // Branch — accent emphasis (priority 3).
-  if (config.showGit) {
-    const branch = getGitBranch(ctx.cwd);
-    if (branch) {
+  // Branch + staged/dirty/untracked counts (priority 3). Skip spawn on minimal.
+  if (config.showGit && preset !== "minimal") {
+    const info = getGitFooterInfo(ctx.cwd);
+    if (info.branch) {
+      let text = chrome.fg("accent", `${glyphs.branchMark} ${info.branch}`);
+      if (info.staged > 0) text += chrome.fg("success", ` +${info.staged}`);
+      if (info.dirty > 0) text += chrome.fg("warning", ` ~${info.dirty}`);
+      if (info.untracked > 0) text += chrome.fg("error", ` ?${info.untracked}`);
       push({
         id: "branch",
         priority: 3,
         required: false,
-        wide: chrome.fg("accent", `${glyphs.branchMark} ${branch}`),
+        wide: text,
       });
     }
   }
@@ -502,7 +671,8 @@ export function renderGrokFooter(
   if (width <= 0) return [""];
 
   const chrome = createChromeTheme(theme);
-  const glyphs = getGlyphs();
+  const density = resolveGlyphDensity(config.glyphDensity ?? "unicode");
+  const glyphs = getGlyphsForDensity(density);
   const sep = chrome.fg("dim", config.separator);
 
   const segments = buildFooterSegments(ctx, statusController, extensionStatuses, config, chrome, glyphs);
@@ -543,7 +713,7 @@ export function installFooter(
     activeTui = tui;
 
     const unsubscribeBranch = footerData?.onBranchChange?.(() => {
-      cachedBranch = null;
+      clearGitFooterCache();
       tui.requestRender();
     });
 

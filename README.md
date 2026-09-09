@@ -101,6 +101,12 @@ cd pi-grok-theme
 pi install . -l
 ```
 
+
+### Install themes: Pi vs Oh My Pi (omp)
+
+- **Pi:** themes ship via this package (`package.json` → `pi.themes` → `themes/grok-build*.json`).
+- **omp:** copy or symlink files from `themes/omp/` into your omp themes directory. These JSON files add `pythonMode` and `statusLine*` tokens and are **not** registered in `pi.themes`.
+
 ### Or configure in `~/.pi/agent/settings.json`
 Add the package repository to your Pi settings packages list:
 

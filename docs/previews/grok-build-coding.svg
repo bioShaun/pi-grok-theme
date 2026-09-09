@@ -13,11 +13,11 @@
 <text x="318.4" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(136,144,159)">model: </text>
 <text x="377.2" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)">claude-3.7-sonnet</text>
 <text x="520.0" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)"> · </text>
-<text x="545.2" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)">v0.4.1</text>
+<text x="545.2" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)">v0.5.0</text>
 <text x="595.6" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)">                              </text>
 <text x="847.6" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)">│</text>
 <text x="16.0" y="108" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(104,110,120)">╰──────────────────────────────────────────────────────────────────────────────────────────────────╯</text>
-<text x="16" y="148" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">footer — wide layout (auto preset, 120 cols)</text>
+<text x="16" y="148" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">footer — wide layout (default preset, 120 cols)</text>
 <text x="16.0" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(136,144,159)">~/pi/pi-grok-theme</text>
 <text x="167.2" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)">  </text>
 <text x="184.0" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(122,162,247)">⎇ main</text>

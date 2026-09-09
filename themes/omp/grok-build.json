@@ -74,7 +74,22 @@
     "thinkingHigh": "border",
     "thinkingXhigh": "dim",
     "thinkingMax": "amber",
-    "bashMode": "amber"
+    "bashMode": "amber",
+    "pythonMode": "amber",
+    "statusLineBg": "surface1",
+    "statusLineSep": "dim",
+    "statusLineModel": "blue",
+    "statusLinePath": "fgSecondary",
+    "statusLineGitClean": "green",
+    "statusLineGitDirty": "amber",
+    "statusLineContext": "cyan",
+    "statusLineSpend": "purple",
+    "statusLineStaged": "green",
+    "statusLineDirty": "amber",
+    "statusLineUntracked": "red",
+    "statusLineOutput": "fgSecondary",
+    "statusLineCost": "purple",
+    "statusLineSubagents": "cyan"
   },
   "export": {
     "pageBg": "#0A0A0A",

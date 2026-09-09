@@ -14,6 +14,9 @@ import {
   renderGrokFooter,
   DEFAULT_FOOTER_CONFIG,
   FOOTER_PRESETS,
+  SEPARATOR_STYLES,
+  SEPARATOR_STYLE_LITERALS,
+  separatorForStyle,
   visibleWidth,
 } from "../footer.ts";
 import { WorkingStateController } from "../status.ts";
@@ -46,8 +49,14 @@ function segments(preset, overrides = {}) {
   return buildFooterSegments(ctx(overrides.ctx ?? {}), status, statuses, config, chrome, MODERN_GLYPHS);
 }
 
-test("auto preset includes every eligible segment (except turn time)", () => {
-  const ids = segments("auto").map((s) => s.id);
+test("FOOTER_PRESETS is minimal|default|full only", () => {
+  assert.deepEqual([...FOOTER_PRESETS], ["minimal", "default", "full"]);
+});
+
+test("default preset matches former auto segment set (no turn)", () => {
+  const ids = segments("default").map((s) => s.id);
+  assert.ok(ids.includes("cwd") && ids.includes("branch"));
+  assert.ok(!ids.includes("turn"));
   assert.ok(ids.includes("cwd"));
   assert.ok(ids.includes("branch"));
   assert.ok(ids.includes("model"));
@@ -57,6 +66,14 @@ test("auto preset includes every eligible segment (except turn time)", () => {
   assert.ok(ids.includes("extension:watcher"));
   assert.ok(ids.includes("status"));
   assert.ok(!ids.includes("turn"), "turn time is a full-preset segment");
+});
+
+test("separatorForStyle maps every named style to a non-empty literal", () => {
+  for (const style of SEPARATOR_STYLES) {
+    assert.equal(separatorForStyle(style), SEPARATOR_STYLE_LITERALS[style]);
+    assert.ok(SEPARATOR_STYLE_LITERALS[style].length > 0);
+  }
+  assert.equal(SEPARATOR_STYLE_LITERALS.dot, " · ");
 });
 
 test("minimal preset shows only model · context · status", () => {
@@ -82,9 +99,9 @@ test("turn time appears only in the full preset and only when turn data exists",
   const activeSegments = buildFooterSegments(ctx(), active, statuses, config, chrome, MODERN_GLYPHS);
   assert.ok(activeSegments.some((s) => s.id === "turn"), "turn time present when active in full preset");
 
-  const autoConfig = { ...DEFAULT_FOOTER_CONFIG, preset: "auto" };
-  const autoSegments = buildFooterSegments(ctx(), active, statuses, autoConfig, chrome, MODERN_GLYPHS);
-  assert.ok(!autoSegments.some((s) => s.id === "turn"), "auto preset never shows turn time");
+  const defaultConfig = { ...DEFAULT_FOOTER_CONFIG, preset: "default" };
+  const defaultSegments = buildFooterSegments(ctx(), active, statuses, defaultConfig, chrome, MODERN_GLYPHS);
+  assert.ok(!defaultSegments.some((s) => s.id === "turn"), "default preset never shows turn time");
 });
 
 // ---------------------------------------------------------------------------
@@ -227,10 +244,12 @@ test("/grok footer reports the current preset and switches immediately", () => {
   notifications.length = 0;
   registered_grok.handler("footer", fakeCtx);
   assert.ok(
-    notifications.some((n) => n.msg.includes("Current:") && n.msg.includes("auto")),
-    "reports the current preset (auto)",
+    notifications.some((n) => n.msg.includes("Current:") && n.msg.includes("default")),
+    "reports the current preset (default)",
   );
   assert.ok(notifications.some((n) => n.msg.includes("minimal") && n.msg.includes("full")), "lists available presets");
+  assert.ok(notifications.some((n) => n.msg.includes("Glyphs:") && n.msg.includes("unicode")));
+  assert.ok(notifications.some((n) => n.msg.includes("Separator:") && n.msg.includes("dot")));
 
   // Switch to minimal — applies immediately.
   notifications.length = 0;
@@ -244,15 +263,31 @@ test("/grok footer reports the current preset and switches immediately", () => {
   assert.ok(minimalRow.includes("24%") || minimalRow.includes("48k"), "minimal keeps context");
   assert.ok(minimalRow.includes("●") || minimalRow.includes("○"), "minimal keeps status");
 
-  // Switch back to auto.
+  // Legacy typed "auto" lands on default.
   registered_grok.handler("footer auto", fakeCtx);
-  const autoRow = footer.render(120)[0];
-  assert.ok(autoRow.includes("~/"), "auto preset restores cwd");
+  const defaultRow = footer.render(120)[0];
+  assert.ok(defaultRow.includes("~/"), "default preset restores cwd");
+  notifications.length = 0;
+  registered_grok.handler("footer", fakeCtx);
+  assert.ok(notifications.some((n) => n.msg.includes("Current:") && n.msg.includes("default")), "auto alias persists as default");
+
+  // Glyphs + sep subcommands.
+  notifications.length = 0;
+  registered_grok.handler("footer glyphs nerd", fakeCtx);
+  assert.ok(notifications.some((n) => n.msg.includes("glyphs: nerd")));
+  notifications.length = 0;
+  registered_grok.handler("footer sep slash", fakeCtx);
+  assert.ok(notifications.some((n) => n.msg.includes("sep: slash")));
+
+  const disk = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+  assert.equal(disk.footerPreset, "default");
+  assert.equal(disk.glyphDensity, "nerd");
+  assert.equal(disk.separatorStyle, "slash");
 
   // Unknown preset warns and leaves the preset unchanged.
   notifications.length = 0;
   registered_grok.handler("footer fancy", fakeCtx);
   assert.ok(notifications.some((n) => n.type === "warning" && n.msg.includes("fancy")));
   registered_grok.handler("footer", fakeCtx);
-  assert.ok(notifications.some((n) => n.msg.includes("Current:") && n.msg.includes("auto")), "preset unchanged after unknown");
+  assert.ok(notifications.some((n) => n.msg.includes("Current:") && n.msg.includes("default")), "preset unchanged after unknown");
 });

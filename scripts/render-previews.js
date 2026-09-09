@@ -13,7 +13,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { Theme } from "@earendil-works/pi-coding-agent";
-import { renderGrokFooter, DEFAULT_FOOTER_CONFIG, visibleWidth } from "../footer.ts";
+import { renderGrokFooter, DEFAULT_FOOTER_CONFIG, visibleWidth, stripOsc8 } from "../footer.ts";
 import { renderHeader, DEFAULT_HEADER_OPTIONS } from "../header.ts";
 import { WorkingStateController } from "../status.ts";
 import { VERSION } from "../version.ts";
@@ -95,7 +95,7 @@ export function renderChromeLines(themeName) {
     status.startTurn(now);
     status.startTool("bash", now);
 
-    const config = { ...DEFAULT_FOOTER_CONFIG, preset: "auto" };
+    const config = { ...DEFAULT_FOOTER_CONFIG, preset: "default" };
     return {
       header: renderHeader(ctx, 100, { ...DEFAULT_HEADER_OPTIONS, version: VERSION }, theme),
       wideFooter: renderGrokFooter(ctx, status, 120, statuses, config, theme),
@@ -174,7 +174,7 @@ const xmlEscape = (s) =>
  */
 export function toTerminalSvg({ background, sections }) {
   const allLines = sections.flatMap((section) => section.lines);
-  const maxCols = Math.max(...allLines.map((l) => visibleWidth(l)), 40);
+  const maxCols = Math.max(...allLines.map((l) => visibleWidth(stripOsc8(l))), 40);
   const width = Math.ceil(maxCols * CHAR_WIDTH + PAD * 2);
   const height = Math.ceil(
     PAD * 2 +
@@ -191,7 +191,8 @@ export function toTerminalSvg({ background, sections }) {
       `<text x="${PAD}" y="${y}" xml:space="preserve" font-family=${JSON.stringify(MONO)} font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">${xmlEscape(section.caption)}</text>`,
     );
     y += LINE_HEIGHT;
-    for (const line of section.lines) {
+    for (const rawLine of section.lines) {
+      const line = stripOsc8(rawLine);
       let col = 0;
       for (const run of parseAnsiRuns(line)) {
         const attrs = [`fill="${run.fg ?? "rgb(210,210,210)"}"`];
@@ -225,7 +226,7 @@ export function renderAllPreviews() {
       background: json.vars.terminalBg,
       sections: [
         { caption: `${name} — header (opt-in via /grok header)`, lines: chrome.header },
-        { caption: "footer — wide layout (auto preset, 120 cols)", lines: chrome.wideFooter },
+        { caption: "footer — wide layout (default preset, 120 cols)", lines: chrome.wideFooter },
         { caption: "footer — narrow layout (44 cols): compact model + context %", lines: chrome.narrowFooter },
       ],
     });

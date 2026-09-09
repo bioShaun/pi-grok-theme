@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.5.0 — omp-style polish (2026-09-09)
+
+Vars-first themes, omp-flavored footer chrome, OSC 8 path + git counts, and dual Pi/omp theme export.
+
+### Themes
+- Shared palette + overlays generate `themes/grok-build*.json` via `npm run build:themes`.
+- Dual distribution: `themes/omp/*.json` adds `pythonMode` + 14 `statusLine*` tokens; **not** listed in `pi.themes`.
+
+### Footer visual
+- Preset rename: `auto` → `default` (legacy typed `auto` still accepted for one release).
+- Glyph density: `unicode` | `nerd` | `ascii` (`nerd` opt-in only; `PI_GROK_LEGACY_GLYPHS=1` forces ascii).
+- Named separators: `dot` | `powerline-thin` | `slash` | `ascii` (default `dot`).
+- Settings migration write-back; `/grok footer`, `/grok footer glyphs`, `/grok footer sep` UX.
+
+### Path + git
+- OSC 8 `file://` hyperlink on the path segment (stripped for width math and SVG previews).
+- Git staged / dirty / untracked counts via `git status --porcelain=v1` with a 3s cache, colored through existing Pi tones (success / warning / error).
+
+
 ## 0.4.1 — Cleanup (2026-09-09)
 
 Focused cleanup on top of Adaptive Chrome. No new beauty/UI features.

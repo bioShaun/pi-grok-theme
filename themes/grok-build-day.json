@@ -6,15 +6,12 @@
     "surface1": "#E4E4E4",
     "surface2": "#DADADA",
     "surface3": "#D0D0D0",
-
     "fg": "#1A1A1A",
     "fgSecondary": "#3A3A3A",
     "muted": "#6C6C6C",
     "dim": "#9C9C9C",
-
     "border": "#C0C0C0",
     "borderMuted": "#D4D4D4",
-
     "blue": "#2E5CB8",
     "cyan": "#0E7490",
     "amber": "#B45309",
@@ -25,40 +22,30 @@
   },
   "colors": {
     "accent": "blue",
-
     "border": "border",
     "borderAccent": "blue",
     "borderMuted": "borderMuted",
-
     "success": "green",
     "error": "red",
     "warning": "amber",
-
     "muted": "muted",
     "dim": "dim",
     "text": "",
     "thinkingText": "muted",
-
     "selectedBg": "surface3",
     "scrollbarThumb": "border",
-
     "searchMatchBg": "surface3",
     "searchMatchText": "fg",
-
     "userMessageBg": "surface2",
     "userMessageText": "fg",
-
     "customMessageBg": "surface1",
     "customMessageText": "fg",
     "customMessageLabel": "amber",
-
     "toolPendingBg": "surface1",
     "toolSuccessBg": "surface1",
     "toolErrorBg": "surface1",
-
     "toolTitle": "blue",
     "toolOutput": "fgSecondary",
-
     "mdHeading": "cyan",
     "mdLink": "blue",
     "mdLinkUrl": "cyan",
@@ -69,11 +56,9 @@
     "mdQuoteBorder": "border",
     "mdHr": "borderMuted",
     "mdListBullet": "cyan",
-
     "toolDiffAdded": "green",
     "toolDiffRemoved": "red",
     "toolDiffContext": "fgSecondary",
-
     "syntaxComment": "muted",
     "syntaxKeyword": "purple",
     "syntaxFunction": "blue",
@@ -83,7 +68,6 @@
     "syntaxType": "cyan",
     "syntaxOperator": "fgSecondary",
     "syntaxPunctuation": "fgSecondary",
-
     "thinkingOff": "borderMuted",
     "thinkingMinimal": "border",
     "thinkingLow": "dim",
@@ -91,7 +75,6 @@
     "thinkingHigh": "fgSecondary",
     "thinkingXhigh": "blue",
     "thinkingMax": "amber",
-
     "bashMode": "amber"
   },
   "export": {

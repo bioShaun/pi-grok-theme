@@ -13,10 +13,14 @@ import assert from "node:assert/strict";
 import {
   MODERN_GLYPHS,
   LEGACY_GLYPHS,
+  NERD_GLYPHS,
   MODERN_SPINNER_FRAMES,
   LEGACY_SPINNER_FRAMES,
   detectGlyphMode,
   getGlyphs,
+  resolveGlyphDensity,
+  getGlyphsForDensity,
+  GLYPH_DENSITIES,
 } from "../glyphs.ts";
 import { createChromeTheme } from "../chrome-theme.ts";
 import { ANSI_COLORS } from "../chrome-theme.ts";
@@ -295,4 +299,26 @@ test("filterWorkingMessage uses phase elapsed (aligned with badge), not whole-tu
   assert.ok(filtered.includes("0.5s"), `filter should show phase 0.5s, got ${filtered}`);
   assert.ok(badge.label.includes("0.5s"), `badge label should show phase 0.5s, got ${badge.label}`);
   assert.ok(!filtered.includes("4.5s"), "filter must not use whole-turn elapsed");
+});
+
+// ---------------------------------------------------------------------------
+// Glyph density (v0.5)
+// ---------------------------------------------------------------------------
+
+test("NERD_GLYPHS defines every GlyphSet key", () => {
+  for (const key of Object.keys(MODERN_GLYPHS)) {
+    assert.ok(NERD_GLYPHS[key], `nerd missing ${key}`);
+  }
+});
+
+test("resolveGlyphDensity: legacy env wins; nerd never auto", () => {
+  assert.equal(resolveGlyphDensity("nerd", { PI_GROK_LEGACY_GLYPHS: "1" }, "linux"), "ascii");
+  assert.equal(resolveGlyphDensity(undefined, {}, "linux"), "unicode");
+  assert.equal(resolveGlyphDensity("nerd", {}, "linux"), "nerd");
+  assert.notEqual(resolveGlyphDensity(undefined, {}, "linux"), "nerd");
+  assert.deepEqual([...GLYPH_DENSITIES], ["unicode", "nerd", "ascii"]);
+});
+
+test("getGlyphsForDensity returns distinct branch marks for nerd vs unicode", () => {
+  assert.notEqual(getGlyphsForDensity("nerd").branchMark, getGlyphsForDensity("unicode").branchMark);
 });

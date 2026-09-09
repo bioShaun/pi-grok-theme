@@ -100,6 +100,12 @@ cd pi-grok-theme
 pi install . -l
 ```
 
+
+### 主题安装：Pi vs Oh My Pi (omp)
+
+- **Pi：** 主题随本包发布（`package.json` → `pi.themes` → `themes/grok-build*.json`）。
+- **omp：** 将 `themes/omp/` 下的 JSON 复制或软链到 omp 主题目录。这些文件额外包含 `pythonMode` 与 `statusLine*` 令牌，**不会**注册到 `pi.themes`。
+
 ### 或在 `~/.pi/agent/settings.json` 中配置
 直接在配置文件中的 `packages` 数组添加仓库地址：
 
