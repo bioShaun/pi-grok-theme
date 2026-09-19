@@ -8,10 +8,8 @@
  * - Multi-accent TokyoNight/GrokNight palette
  */
 
-import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { spawnSync } from "node:child_process";
 import type { ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import {
   visibleWidth as tuiVisibleWidth,
@@ -25,7 +23,9 @@ import {
   type GlyphDensity,
   type GlyphSet,
 } from "./glyphs.ts";
-import { formatDuration, type WorkingStateController } from "./status.ts";
+import { formatDuration, normalizeToolAction, type MotionMode, type WorkingStateController } from "./status.ts";
+
+import type { GitSnapshot } from "./git-status.ts";
 
 export interface FooterConfig {
   separator: string; // default " · "
@@ -39,6 +39,9 @@ export interface FooterConfig {
   compactThreshold: number; // width under which compact variants are preferred (80)
   /** Resolved glyph density applied by the render path (default unicode via settings). */
   glyphDensity?: GlyphDensity;
+  motion?: MotionMode;
+  gitSnapshot?: GitSnapshot;
+  onBranchChange?: () => void;
 }
 
 export type FooterPreset = "minimal" | "default" | "full";
@@ -56,7 +59,8 @@ export const SEPARATOR_STYLE_LITERALS: Record<SeparatorStyle, string> = {
   ascii: " | ",
 };
 
-export function separatorForStyle(style: SeparatorStyle): string {
+export function separatorForStyle(style: SeparatorStyle, density?: GlyphDensity): string {
+  if (density && resolveGlyphDensity(density) === "ascii" && (style === "dot" || style === "powerline-thin")) return " | ";
   return SEPARATOR_STYLE_LITERALS[style];
 }
 
@@ -70,7 +74,7 @@ export const DEFAULT_FOOTER_CONFIG: FooterConfig = {
   showThinking: true,
   showStatus: true,
   compactThreshold: 80,
-  glyphDensity: "unicode",
+  glyphDensity: "auto",
 };
 
 /**
@@ -90,14 +94,8 @@ export interface FooterSegment {
   /** Styled compact variant, when the segment can shrink instead of dropping. */
   compact?: string;
   position?: "left" | "inline";
-}
-
-interface LiveSegment {
-  seg: FooterSegment;
-  /** Display order within the row (stable across fitting). */
-  index: number;
-  compacted: boolean;
-  dropped: boolean;
+  detail?: string;
+  timer?: string;
 }
 
 /**
@@ -118,69 +116,37 @@ export function fitFooterSegments(
   width: number,
   separator: string,
   preferCompact = false,
+  ellipsis = "…",
 ): string {
-  const live: LiveSegment[] = segments.map((seg, index) => ({
-    seg,
-    index,
-    compacted: preferCompact && seg.compact !== undefined,
-    dropped: false,
-  }));
-
-  const variantOf = (l: LiveSegment): string =>
-    l.compacted && l.seg.compact !== undefined ? l.seg.compact : l.seg.wide;
-
-  const buildRow = (): string => {
-    let row = "";
-    let needSeparator = false;
-    for (const l of live) {
-      if (l.dropped) continue;
-      const variant = variantOf(l);
-      if (!variant) continue;
-      if (l.seg.position === "left") {
-        row = `${variant}  ${row}`;
-      } else {
-        row += `${needSeparator ? separator : ""}${variant}`;
-        needSeparator = true;
-      }
-    }
-    return row;
-  };
-
-  // Operations cheapest-first, in three tiers:
-  // 1. drop optional segments that have no compact variant (lowest priority
-  //    first; equal priority drops later entries first);
-  // 2. compact compactable segments in place (lowest priority first) — wide
-  //    context becomes the compact percentage, long model names shorten;
-  // 3. only then drop compactable segments (lowest priority first).
-  // Required segments never receive a drop operation.
-  const ops: { l: LiveSegment; kind: "compact" | "drop" }[] = [];
-  const ordered = [...live].sort((a, b) => {
-    if (a.seg.priority !== b.seg.priority) return b.seg.priority - a.seg.priority;
-    return b.index - a.index; // later entries drop first within a priority
-  });
-  for (const l of ordered) {
-    if (!l.seg.required && l.seg.compact === undefined) ops.push({ l, kind: "drop" });
+  if (width <= 0) return "";
+  const live = segments.map((seg) => ({ ...seg, text: preferCompact ? seg.compact ?? seg.wide : seg.wide, dropped: false }));
+  const row = () => live.filter((s) => !s.dropped && s.text).map((s) => s.text).join(separator);
+  const ordered = [...live].sort((a, b) => b.priority - a.priority || live.indexOf(b) - live.indexOf(a));
+  const operations = [
+    ...ordered.filter((s) => !s.required && s.compact === undefined).map((s) => () => { s.dropped = true; }),
+    ...ordered.filter((s) => s.compact !== undefined).map((s) => () => { s.text = s.compact!; }),
+    ...ordered.filter((s) => !s.required && s.compact !== undefined).map((s) => () => { s.dropped = true; }),
+  ];
+  for (const operation of operations) {
+    if (visibleWidth(row()) <= width) break;
+    operation();
   }
-  for (const l of ordered) {
-    if (l.seg.compact !== undefined) ops.push({ l, kind: "compact" });
+  if (visibleWidth(row()) <= width) return row();
+  // Allocate the remaining required fields in priority order, reserving a
+  // visible character for each lower-priority field whenever space allows.
+  const required = live.filter((s) => !s.dropped).sort((a, b) => a.priority - b.priority);
+  const gap = visibleWidth(separator);
+  let remaining = width;
+  for (let i = 0; i < required.length; i++) {
+    const segment = required[i]!;
+    const later = required.length - i - 1;
+    const reserve = remaining >= 1 + later * (gap + 1) ? later * (gap + 1) : 0;
+    const budget = Math.max(0, remaining - reserve);
+    segment.text = truncateToWidth(segment.text, budget, budget > 1 ? ellipsis : "");
+    if (!segment.text) segment.dropped = true;
+    remaining = Math.max(0, remaining - visibleWidth(segment.text) - gap);
   }
-  for (const l of ordered) {
-    if (!l.seg.required && l.seg.compact !== undefined) ops.push({ l, kind: "drop" });
-  }
-
-  let opIndex = 0;
-  while (visibleWidth(buildRow()) > width && opIndex < ops.length) {
-    const op = ops[opIndex];
-    opIndex += 1;
-    if (!op) break;
-    if (op.kind === "compact") {
-      op.l.compacted = true;
-    } else {
-      op.l.dropped = true;
-    }
-  }
-
-  return truncateToWidth(buildRow(), width);
+  return truncateToWidth(row(), width, ellipsis);
 }
 
 /**
@@ -212,7 +178,7 @@ export function formatTokenCount(tokens: number): string {
 export function formatCwd(cwd: string): string {
   const home = os.homedir();
   if (cwd === home) return "~";
-  if (cwd.startsWith(home)) {
+  if (cwd.startsWith(`${home}${path.sep}`)) {
     return `~${cwd.slice(home.length)}`;
   }
   return path.basename(cwd);
@@ -244,172 +210,6 @@ export function wrapOsc8Hyperlink(uri: string, label: string): string {
 /** Strip OSC 8 sequences for width math / preview snapshots. */
 export function stripOsc8(str: string): string {
   return (str ?? "").replace(OSC8_RE, "");
-}
-
-/** Git footer info: branch + staged/dirty/untracked counts (3s TTL cache). */
-export interface GitFooterInfo {
-  branch?: string;
-  staged: number;
-  dirty: number;
-  untracked: number;
-}
-
-let cachedGit: {
-  cwd: string;
-  expiresAt: number;
-  branch: string;
-  staged: number;
-  dirty: number;
-  untracked: number;
-} | null = null;
-
-export function clearGitFooterCache(): void {
-  cachedGit = null;
-}
-
-/**
- * Parse `git status --porcelain=v1 -b` stdout.
- * staged = index column non-space and not `?`;
- * dirty = worktree column modified (M/D/etc, not space/?) ;
- * untracked = `??`.
- */
-export function parseGitPorcelain(porcelainStdout: string): {
-  staged: number;
-  dirty: number;
-  untracked: number;
-} {
-  let staged = 0;
-  let dirty = 0;
-  let untracked = 0;
-  for (const line of porcelainStdout.split("\n")) {
-    if (!line || line.startsWith("##")) continue;
-    if (line.startsWith("??")) {
-      untracked += 1;
-      continue;
-    }
-    if (line.length < 2) continue;
-    const index = line[0] ?? " ";
-    const work = line[1] ?? " ";
-    if (index !== " " && index !== "?") staged += 1;
-    if (work !== " " && work !== "?") dirty += 1;
-  }
-  return { staged, dirty, untracked };
-}
-
-function readBranchFromHead(gitDir: string): string | undefined {
-  const headPath = path.join(gitDir, "HEAD");
-  if (!fs.existsSync(headPath)) return undefined;
-  const content = fs.readFileSync(headPath, "utf8").trim();
-  if (content.startsWith("ref: refs/heads/")) {
-    return content.replace("ref: refs/heads/", "");
-  }
-  return content.length >= 7 ? content.slice(0, 7) : undefined;
-}
-
-/** Locate .git (dir or gitdir file) and the work-tree root above cwd. */
-function discoverGit(cwd: string): { gitDir: string; workTree: string; branch: string } | undefined {
-  let current = path.resolve(cwd);
-  try {
-    while (true) {
-      const dotGitPath = path.join(current, ".git");
-      if (fs.existsSync(dotGitPath)) {
-        if (fs.statSync(dotGitPath).isDirectory()) {
-          const branch = readBranchFromHead(dotGitPath) ?? "";
-          return { gitDir: dotGitPath, workTree: current, branch };
-        }
-        const gitdir = /^gitdir:\s*(.+)$/m.exec(fs.readFileSync(dotGitPath, "utf8"))?.[1]?.trim();
-        if (gitdir) {
-          const resolved = path.isAbsolute(gitdir) ? gitdir : path.resolve(current, gitdir);
-          const branch = readBranchFromHead(resolved) ?? "";
-          return { gitDir: resolved, workTree: current, branch };
-        }
-        return undefined;
-      }
-      const parent = path.dirname(current);
-      if (parent === current) break;
-      current = parent;
-    }
-  } catch {
-    // Fallback quietly
-  }
-  return undefined;
-}
-
-export function getGitFooterInfo(cwd: string): GitFooterInfo {
-  const now = Date.now();
-  if (cachedGit && cachedGit.cwd === cwd && cachedGit.expiresAt > now) {
-    return {
-      branch: cachedGit.branch || undefined,
-      staged: cachedGit.staged,
-      dirty: cachedGit.dirty,
-      untracked: cachedGit.untracked,
-    };
-  }
-
-  const discovered = discoverGit(cwd);
-  let branch = discovered?.branch ?? "";
-  let staged = 0;
-  let dirty = 0;
-  let untracked = 0;
-
-  // Pin --git-dir/--work-tree so a fixture .git cannot leak into a parent repo.
-  if (discovered) {
-    try {
-      const result = spawnSync(
-        "git",
-        [
-          `--git-dir=${discovered.gitDir}`,
-          `--work-tree=${discovered.workTree}`,
-          "status",
-          "--porcelain=v1",
-          "-b",
-        ],
-        {
-          cwd: discovered.workTree,
-          encoding: "utf8",
-          timeout: 500,
-          env: { ...process.env, GIT_OPTIONAL_LOCKS: "1" },
-        },
-      );
-      if (result.status === 0 && typeof result.stdout === "string") {
-        const counts = parseGitPorcelain(result.stdout);
-        staged = counts.staged;
-        dirty = counts.dirty;
-        untracked = counts.untracked;
-        const header = result.stdout.split("\n").find((l) => l.startsWith("## "));
-        if (header) {
-          // Branch names may contain dots (e.g. v0.5-omp-style-polish).
-          const m = /^## (\S+?)(?:\.\.\.|$)/.exec(header);
-          if (m?.[1] && m[1] !== "HEAD" && !m[1].startsWith("(")) {
-            branch = m[1];
-          }
-        }
-      }
-    } catch {
-      // counts stay 0; branch from fs when possible
-    }
-  }
-
-  cachedGit = {
-    cwd,
-    branch,
-    staged,
-    dirty,
-    untracked,
-    expiresAt: now + 3000,
-  };
-
-  return {
-    branch: branch || undefined,
-    staged,
-    dirty,
-    untracked,
-  };
-}
-
-/** Thin wrapper: branch only (header / title callers). */
-export function getGitBranch(cwd: string): string | undefined {
-  return getGitFooterInfo(cwd).branch;
 }
 
 /** Simplify model identifier for compact display */
@@ -478,7 +278,7 @@ export function renderContextMetric(
   if (pct === undefined && usedTokens !== undefined && totalTokens) {
     pct = (usedTokens / totalTokens) * 100;
   }
-  if (pct === undefined) return "";
+  if (pct === undefined || !Number.isFinite(pct)) return "";
 
   const pctRounded = Math.round(Math.min(100, Math.max(0, pct)));
 
@@ -488,7 +288,7 @@ export function renderContextMetric(
   else if (pctRounded >= 65) tone = "accent";
   else tone = "muted";
 
-  if (compact || !usedTokens || !totalTokens) {
+  if (compact || usedTokens === undefined || !totalTokens) {
     return chrome.fg(tone, `${pctRounded}%`);
   }
 
@@ -510,7 +310,7 @@ export function buildFooterSegments(
   glyphs: ReturnType<typeof getGlyphs>,
 ): FooterSegment[] {
   const preset = config.preset ?? "default";
-  const badge = statusController.getBadge();
+  const badge = statusController.getBadge(Date.now(), config.motion);
   const want = (id: string): boolean => {
     if (preset === "minimal") return id === "model" || id === "context" || id === "status";
     return true; // default and full include every eligible segment
@@ -533,23 +333,24 @@ export function buildFooterSegments(
       priority: 8,
       required: false,
       wide,
-      position: "left",
     });
   }
 
-  // Branch + staged/dirty/untracked counts (priority 3). Skip spawn on minimal.
+  // Snapshot only: renderers never discover repositories or run Git.
   if (config.showGit && preset !== "minimal") {
-    const info = getGitFooterInfo(ctx.cwd);
-    if (info.branch) {
-      let text = chrome.fg("accent", `${glyphs.branchMark} ${info.branch}`);
-      if (info.staged > 0) text += chrome.fg("success", ` +${info.staged}`);
-      if (info.dirty > 0) text += chrome.fg("warning", ` ~${info.dirty}`);
-      if (info.untracked > 0) text += chrome.fg("error", ` ?${info.untracked}`);
+    const info = config.gitSnapshot;
+    if (info && (info.branch || info.state === "error")) {
+      let text = info.branch ? chrome.fg("muted", `${glyphs.branchMark} ${info.branch}`) : "";
+      if (info.state === "error") text += chrome.fg("warning", `${text ? " " : ""}git?`);
+      if (info.state !== "error" && (info.staged ?? 0) > 0) text += chrome.fg("success", ` +${info.staged}`);
+      if (info.state !== "error" && (info.dirty ?? 0) > 0) text += chrome.fg("warning", ` ~${info.dirty}`);
+      if (info.state !== "error" && (info.untracked ?? 0) > 0) text += chrome.fg("muted", ` ?${info.untracked}`);
       push({
         id: "branch",
         priority: 3,
         required: false,
         wide: text,
+        compact: `${chrome.fg("muted", `${glyphs.branchMark} ${shortenBranch(info.branch ?? "", 14, glyphs === getGlyphsForDensity("ascii") ? "~" : "…")}`)}${info.state === "error" ? chrome.fg("warning", " git?") : ""}`,
       });
     }
   }
@@ -562,8 +363,8 @@ export function buildFooterSegments(
         id: "model",
         priority: 2,
         required: true,
-        wide: chrome.fg("muted", rawModel),
-        compact: chrome.fg("muted", shortenModelName(rawModel)),
+        wide: chrome.fg("text", rawModel),
+        compact: chrome.fg("text", shortenModelName(rawModel)),
       });
     }
   }
@@ -630,7 +431,7 @@ export function buildFooterSegments(
       id: "turn",
       priority: 7,
       required: false,
-      wide: chrome.fg("dim", `${formatDuration(badge.turnElapsedMs)} turn`),
+      wide: chrome.fg("muted", `${formatDuration(badge.turnElapsedMs, config.motion)} turn`),
     });
   }
 
@@ -646,10 +447,14 @@ export function buildFooterSegments(
       priority: 1,
       required: true,
       wide: `${chrome.fg(badge.tone, icon)} ${chrome.fg("muted", badge.label)}`,
+      compact: `${chrome.fg(badge.tone, icon)} ${chrome.fg("muted", badge.state === "running_tool" ? "tool" : badge.state === "streaming" ? "generating" : badge.state)}`,
+      detail: `${chrome.fg(badge.tone, icon)} ${chrome.fg("muted", badge.state === "running_tool" ? normalizeToolAction(statusController.getCurrentTool()) : badge.state === "streaming" ? "generating" : badge.state)}`,
+      timer: badge.phaseElapsedMs === undefined ? undefined : chrome.fg("muted", formatDuration(badge.phaseElapsedMs, config.motion)),
     });
   }
 
-  return segments;
+  const order = (id: string) => id.startsWith("extension:") ? 3 : ({ model: 0, branch: 1, context: 2, thinking: 4, cwd: 5, turn: 6, status: 7 }[id] ?? 3);
+  return segments.sort((a, b) => order(a.id) - order(b.id));
 }
 
 /**
@@ -671,13 +476,26 @@ export function renderGrokFooter(
   if (width <= 0) return [""];
 
   const chrome = createChromeTheme(theme);
-  const density = resolveGlyphDensity(config.glyphDensity ?? "unicode");
+  const density = resolveGlyphDensity(config.glyphDensity ?? "auto");
   const glyphs = getGlyphsForDensity(density);
-  const sep = chrome.fg("dim", config.separator);
+  const separator = density === "ascii" ? config.separator.replace(/[·\uE0B1]/g, "|") : config.separator;
+  const sep = chrome.fg("dim", separator);
 
   const segments = buildFooterSegments(ctx, statusController, extensionStatuses, config, chrome, glyphs);
   const preferCompact = width < config.compactThreshold;
-  return [fitFooterSegments(segments, width, sep, preferCompact)];
+  const ellipsis = density === "ascii" ? "~" : "…";
+  const activity = segments.find((segment) => segment.id === "status");
+  if (!preferCompact && width >= 80 && activity) {
+    const region = 24;
+    const timer = activity.timer ?? "";
+    const labelBudget = region - (timer ? visibleWidth(timer) + 1 : 0);
+    const detail = visibleWidth(activity.detail ?? "") <= labelBudget ? activity.detail! : activity.compact!;
+    const label = truncateToWidth(detail, Math.max(1, labelBudget), ellipsis);
+    const right = label + " ".repeat(Math.max(0, region - visibleWidth(label) - visibleWidth(timer))) + timer;
+    const left = fitFooterSegments(segments.filter((s) => s !== activity), width - region - 2, sep, false, ellipsis);
+    return [left + " ".repeat(width - region - visibleWidth(left)) + right];
+  }
+  return [fitFooterSegments(segments, width, sep, preferCompact, ellipsis)];
 }
 
 /**
@@ -713,7 +531,7 @@ export function installFooter(
     activeTui = tui;
 
     const unsubscribeBranch = footerData?.onBranchChange?.(() => {
-      clearGitFooterCache();
+      config.onBranchChange?.();
       tui.requestRender();
     });
 
@@ -742,4 +560,16 @@ export function installFooter(
       activeTui?.requestRender();
     },
   };
+}
+
+/** Keep the distinguishing tail without splitting display units. */
+export function shortenBranch(branch: string, width: number, ellipsis = "…"): string {
+  if (visibleWidth(branch) <= width) return branch;
+  const units = [...new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(branch)].map((s) => s.segment);
+  let tail = "";
+  for (const unit of units.reverse()) {
+    if (visibleWidth(ellipsis + unit + tail) > width) break;
+    tail = unit + tail;
+  }
+  return ellipsis + tail;
 }

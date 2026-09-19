@@ -7,7 +7,7 @@ export const paletteDay = {
 
   fg: "#1A1A1A",
   fgSecondary: "#3A3A3A",
-  muted: "#6C6C6C",
+  muted: "#585858",
   dim: "#9C9C9C",
 
   border: "#C0C0C0",
@@ -15,9 +15,9 @@ export const paletteDay = {
 
   blue: "#2E5CB8",
   cyan: "#0E7490",
-  amber: "#B45309",
+  amber: "#92400E",
   purple: "#7C3AED",
-  green: "#4D7C0F",
-  red: "#DC2626",
+  green: "#3F6212",
+  red: "#B91C1C",
   orange: "#C2410C",
 };

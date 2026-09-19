@@ -42,7 +42,7 @@ const statuses = new Map([
 ]);
 
 function segments(preset, overrides = {}) {
-  const config = { ...DEFAULT_FOOTER_CONFIG, preset, ...overrides };
+  const config = { ...DEFAULT_FOOTER_CONFIG, preset, gitSnapshot: { state: "ready", branch: "main", staged: 0, dirty: 0, untracked: 0 }, ...overrides };
   const status = new WorkingStateController();
   status.startTurn(Date.now());
   status.startStreaming();

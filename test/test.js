@@ -5,7 +5,7 @@ import path from "node:path";
 import os from "node:os";
 import registerGrokBuildExtension from "../index.ts";
 import { renderHeader } from "../header.ts";
-import { renderGrokFooter, visibleWidth, truncateToWidth, shortenModelName, getGitBranch, DEFAULT_FOOTER_CONFIG } from "../footer.ts";
+import { renderGrokFooter, visibleWidth, truncateToWidth, shortenModelName, DEFAULT_FOOTER_CONFIG } from "../footer.ts";
 import { VERSION } from "../version.ts";
 import { WorkingStateController } from "../status.ts";
 import { hexToOsc12, setCursorColor, resetCursorColor } from "../cursor.ts";
@@ -237,7 +237,7 @@ test("Header & Footer Component render interface and /grok commands", () => {
   const headerComp = headerFactory({ requestRender: () => {} }, {});
   assert.equal(typeof headerComp.render, "function", "Header component must implement .render(width)");
   const headerLines = headerComp.render(80);
-  assert.equal(headerLines.length, 3);
+  assert.equal(headerLines.length, 1);
 
   // Footer verification
   assert.equal(typeof footerFactory, "function", "setFooter should receive a factory function");
@@ -311,7 +311,7 @@ test("session_start shell chrome: setTitle + setHiddenThinkingLabel", () => {
 
   // Title: called exactly once, grok format with ⚡ and cwd basename
   assert.equal(titleCalls.length, 1, "setTitle should be called exactly once on session_start");
-  assert.ok(titleCalls[0].includes("⚡"), "title should contain the ⚡ glyph");
+  assert.ok(titleCalls[0].includes("◇"), "title should contain the monochrome brand glyph");
   assert.ok(titleCalls[0].includes("my-project"), "title should contain the cwd basename");
 
   // Hidden thinking label: called exactly once, compact, single-line, no ANSI
@@ -427,42 +427,6 @@ test("shortenModelName extended mappings (R1)", () => {
   assert.equal(shortenModelName("kimi-k3-256k"), "kimi-k3");
 });
 
-test("getGitBranch handles .git dir, worktree-style .git file, and walks up", () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-grok-theme-git-"));
-  try {
-    // Regular repo: `.git` directory with a HEAD ref.
-    const repo = path.join(root, "repo");
-    fs.mkdirSync(path.join(repo, ".git"), { recursive: true });
-    fs.writeFileSync(path.join(repo, ".git", "HEAD"), "ref: refs/heads/main\n");
-
-    // Linked worktree: `.git` is a file with an absolute `gitdir:` pointer.
-    const gitdir = path.join(repo, ".git", "worktrees", "wt");
-    fs.mkdirSync(gitdir, { recursive: true });
-    fs.writeFileSync(path.join(gitdir, "HEAD"), "ref: refs/heads/feature\n");
-    const wt = path.join(root, "wt");
-    fs.mkdirSync(wt, { recursive: true });
-    fs.writeFileSync(path.join(wt, ".git"), `gitdir: ${gitdir}\n`);
-
-    // Submodule style: `.git` file with a relative `gitdir:` pointer.
-    const sub = path.join(root, "sub");
-    const moduleGitdir = path.join(root, "subm", "m");
-    fs.mkdirSync(moduleGitdir, { recursive: true });
-    fs.writeFileSync(path.join(moduleGitdir, "HEAD"), "ref: refs/heads/dev\n");
-    fs.mkdirSync(sub, { recursive: true });
-    fs.writeFileSync(path.join(sub, ".git"), "gitdir: ../subm/m\n");
-
-    // Nested cwd must walk up to the enclosing repo.
-    const nested = path.join(repo, "a", "b");
-    fs.mkdirSync(nested, { recursive: true });
-
-    assert.equal(getGitBranch(wt), "feature", "worktree-style .git file resolves branch");
-    assert.equal(getGitBranch(sub), "dev", "relative gitdir resolves branch");
-    assert.equal(getGitBranch(nested), "main", "nested cwd walks up to repo");
-    assert.equal(getGitBranch(root), undefined, "no git anywhere → no branch");
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
-});
 
 test("footer width regression with extension status (R2.5)", () => {
   // Same fake ctx shape as the existing footer test (field richness aligned).
@@ -484,7 +448,7 @@ test("footer width regression with extension status (R2.5)", () => {
   for (const width of widths) {
     let lines;
     assert.doesNotThrow(() => {
-      lines = renderGrokFooter(ctx, statusController, width, extensionStatuses, DEFAULT_FOOTER_CONFIG);
+      lines = renderGrokFooter(ctx, statusController, width, extensionStatuses, { ...DEFAULT_FOOTER_CONFIG, gitSnapshot: { state: "ready", branch: "main" } });
     }, `width=${width} must not throw`);
     rows.set(width, lines[0]);
 

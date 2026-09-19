@@ -32,13 +32,13 @@ export interface GlyphSet {
   thinkingMark: string;
   /** Git branch mark (`⎇`). */
   branchMark: string;
-  /** Context token arrow (`⇣` modern, `↓` legacy fallback per spec §4.3). */
+  /** Context token arrow (`⇣` modern, `v` ASCII fallback). */
   tokenArrow: string;
-  /** Lightning brand mark (`⚡`; the only glyph wider than one column). */
+  /** Monochrome brand mark (`◇`, one column). */
   brandMark: string;
   /** Disclosure arrow (`▸`). */
   disclosureArrow: string;
-  /** Header workspace folder mark (`📁` modern, ASCII in legacy mode). */
+  /** Header workspace mark (`▸` modern, ASCII in legacy mode). */
   folderMark: string;
   /** Working-indicator frames, all exactly one visible column. */
   spinnerFrames: string[];
@@ -60,9 +60,9 @@ export const MODERN_GLYPHS: GlyphSet = {
   thinkingMark: "✻",
   branchMark: "⎇",
   tokenArrow: "⇣",
-  brandMark: "⚡",
+  brandMark: "◇",
   disclosureArrow: "▸",
-  folderMark: "📁",
+  folderMark: "▸",
   spinnerFrames: [...MODERN_SPINNER_FRAMES],
 };
 
@@ -71,7 +71,7 @@ export const LEGACY_GLYPHS: GlyphSet = {
   idleDot: "o",
   thinkingMark: "*",
   branchMark: "#",
-  tokenArrow: "↓",
+  tokenArrow: "v",
   brandMark: "#",
   disclosureArrow: ">",
   folderMark: ">",
@@ -123,12 +123,13 @@ export function getGlyphs(mode: GlyphMode = detectGlyphMode()): GlyphSet {
 }
 
 // ---------------------------------------------------------------------------
-// Glyph density (v0.5): unicode | nerd | ascii
+// Glyph preference: auto | unicode | nerd | ascii
 // ---------------------------------------------------------------------------
 
-export type GlyphDensity = "unicode" | "nerd" | "ascii";
+export type GlyphDensity = "auto" | "unicode" | "nerd" | "ascii";
+export type EffectiveGlyphDensity = Exclude<GlyphDensity, "auto">;
 
-export const GLYPH_DENSITIES: readonly GlyphDensity[] = ["unicode", "nerd", "ascii"];
+export const GLYPH_DENSITIES: readonly GlyphDensity[] = ["auto", "unicode", "nerd", "ascii"];
 
 /**
  * Nerd Font marks for branch/folder; other keys reuse the modern (unicode) set.
@@ -144,13 +145,13 @@ export const NERD_GLYPHS: GlyphSet = {
  * Resolve density from settings + capability.
  * - PI_GROK_LEGACY_GLYPHS=1 always forces ascii (wins over settings nerd).
  * - nerd only when settings explicitly request it.
- * - undefined settings → unicode (never auto-select nerd).
+ * - auto/undefined settings → capability detection (never auto-select nerd).
  */
 export function resolveGlyphDensity(
   settingsDensity: GlyphDensity | undefined,
   env: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
-): GlyphDensity {
+): EffectiveGlyphDensity {
   if (env.PI_GROK_LEGACY_GLYPHS === "1") return "ascii";
   if (settingsDensity === "nerd") return "nerd";
   if (settingsDensity === "ascii") return "ascii";
@@ -160,7 +161,7 @@ export function resolveGlyphDensity(
   return mode === "legacy" ? "ascii" : "unicode";
 }
 
-export function getGlyphsForDensity(density: GlyphDensity): GlyphSet {
+export function getGlyphsForDensity(density: EffectiveGlyphDensity): GlyphSet {
   switch (density) {
     case "nerd":
       return NERD_GLYPHS;
@@ -170,4 +171,9 @@ export function getGlyphsForDensity(density: GlyphDensity): GlyphSet {
     default:
       return MODERN_GLYPHS;
   }
+}
+
+/** One resolved glyph policy for every plugin-owned surface. */
+export function resolveGlyphs(density: GlyphDensity = "auto"): GlyphSet {
+  return getGlyphsForDensity(resolveGlyphDensity(density));
 }

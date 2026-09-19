@@ -124,17 +124,17 @@ test("host percentage alone still renders (no token counts required)", () => {
   assert.ok(TONES.muted(out), "42% must be muted (below the 65% threshold)");
 });
 
-test("legacy glyph mode substitutes ↓ without changing layout width", () => {
+test("legacy glyph mode substitutes v without changing layout width", () => {
   const modern = metric(48000, 200000, 24, { glyphs: MODERN_GLYPHS });
   const legacy = metric(48000, 200000, 24, { glyphs: LEGACY_GLYPHS });
 
   assert.ok(modern.includes("⇣"));
-  assert.ok(legacy.includes("↓"));
+  assert.ok(legacy.includes("v"));
   assert.ok(!legacy.includes("⇣"));
   assert.equal(visibleWidth(modern), visibleWidth(legacy), "layout width must not change");
 
   // Stripped text differs only in the arrow character.
-  const stripArrow = (s) => s.replace(/[⇣↓]/g, "");
+  const stripArrow = (s) => s.replace(/[⇣v]/g, "");
   assert.equal(stripArrow(modern).replace(/\x1b\[[0-9;]*m/g, ""), stripArrow(legacy).replace(/\x1b\[[0-9;]*m/g, ""));
 });
 

@@ -31,13 +31,13 @@ test("saveSettings + loadSettings round-trip all four fields", () => {
     footerPreset: "minimal",
     showHeader: true,
     glyphDensity: "nerd",
-    separatorStyle: "slash",
+    separatorStyle: "slash", headerStyle: "compact", motion: "normal",
   }, file);
   assert.deepEqual(loadSettings(file), {
     footerPreset: "minimal",
     showHeader: true,
     glyphDensity: "nerd",
-    separatorStyle: "slash",
+    separatorStyle: "slash", headerStyle: "compact", motion: "normal",
   });
   fs.unlinkSync(file);
 });
@@ -47,7 +47,7 @@ test("loadSettings migrates footerPreset auto → default and write-backs", () =
   fs.writeFileSync(file, JSON.stringify({ footerPreset: "auto", showHeader: true }), "utf8");
   const loaded = loadSettings(file);
   assert.equal(loaded.footerPreset, "default");
-  assert.equal(loaded.glyphDensity, "unicode");
+  assert.equal(loaded.glyphDensity, "auto");
   assert.equal(loaded.separatorStyle, "dot");
   assert.equal(loaded.showHeader, true);
   const disk = JSON.parse(fs.readFileSync(file, "utf8"));
@@ -62,21 +62,21 @@ test("saveSettings never writes auto and includes new keys", () => {
     footerPreset: "default",
     showHeader: false,
     glyphDensity: "nerd",
-    separatorStyle: "slash",
+    separatorStyle: "slash", headerStyle: "compact", motion: "normal",
   }, file);
   const disk = JSON.parse(fs.readFileSync(file, "utf8"));
   assert.deepEqual(disk, {
     footerPreset: "default",
     showHeader: false,
     glyphDensity: "nerd",
-    separatorStyle: "slash",
+    separatorStyle: "slash", headerStyle: "compact", motion: "normal",
   });
   fs.unlinkSync(file);
 });
 
 test("session_start loads persisted prefs; /grok footer|header saves them", async () => {
   const settingsPath = tempSettingsPath();
-  saveSettings({ footerPreset: "full", showHeader: true, glyphDensity: "unicode", separatorStyle: "dot" }, settingsPath);
+  saveSettings({ footerPreset: "full", showHeader: true, glyphDensity: "unicode", separatorStyle: "dot", headerStyle: "compact", motion: "normal" }, settingsPath);
 
   const notifications = [];
   let headerFactory = null;
@@ -124,7 +124,7 @@ test("session_start loads persisted prefs; /grok footer|header saves them", asyn
   // Toggle header off and switch footer → persisted for next session.
   await registered.handler("header", fakeCtx);
   await registered.handler("footer minimal", fakeCtx);
-  assert.deepEqual(loadSettings(settingsPath), { footerPreset: "minimal", showHeader: false, glyphDensity: "unicode", separatorStyle: "dot" });
+  assert.deepEqual(loadSettings(settingsPath), { footerPreset: "minimal", showHeader: false, glyphDensity: "unicode", separatorStyle: "dot", headerStyle: "compact", motion: "normal" });
 
   // Fresh registration simulates a new session.
   const listeners2 = {};

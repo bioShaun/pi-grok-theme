@@ -32,6 +32,7 @@
     "index.ts",
     "chrome-theme.ts",
     "cursor.ts",
+    "git-status.ts",
     "footer.ts",
     "glyphs.ts",
     "header.ts",

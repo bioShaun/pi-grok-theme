@@ -124,7 +124,7 @@ test("footer colors come from semantic theme tokens, not GrokNight RGB constants
 
   const [row] = renderGrokFooter(ctx, status, 120, new Map(), DEFAULT_FOOTER_CONFIG, theme);
 
-  assert.match(row, /\x1b\[94m/, "branch should use the accent token");
+  assert.match(row, /\x1b\[39mclaude/, "model uses the primary text token");
   assert.match(row, /\x1b\[37m/, "secondary metadata should use the muted token");
   assert.match(row, /\x1b\[93m/, "running-tool badge should use the warning token");
   assert.ok(!GROKNIGHT_TRUECOLOR.test(row), `footer must not emit fixed truecolor ANSI: ${row}`);
@@ -164,8 +164,8 @@ test("switching between dark and day themes recolors chrome without reinstalling
   const strip = (s) => s.replace(/\x1b\[[0-9;]*m/g, "");
   assert.notEqual(darkRow, dayRow);
   assert.equal(strip(darkRow), strip(dayRow));
-  assert.match(darkRow, /\x1b\[94m/, "dark theme accent");
-  assert.match(dayRow, /\x1b\[34m/, "day theme accent differs");
+  assert.match(darkRow, /\x1b\[93m/, "dark theme activity warning");
+  assert.match(dayRow, /\x1b\[33m/, "day theme activity warning differs");
 });
 
 test("third-party themes keep their own semantic tokens (legibility)", () => {
@@ -173,7 +173,7 @@ test("third-party themes keep their own semantic tokens (legibility)", () => {
   const status = new WorkingStateController();
 
   const [row] = renderGrokFooter(ctx, status, 120, new Map(), DEFAULT_FOOTER_CONFIG, fakeTheme("vendor-light"));
-  assert.match(row, /\x1b\[32m/, "chrome uses the third-party theme's accent");
+  assert.match(row, /\x1b\[30m/, "chrome uses the third-party theme's text");
   assert.ok(!GROKNIGHT_TRUECOLOR.test(row));
 });
 
@@ -191,14 +191,14 @@ test("footer without a theme falls back to the v0.3 shim palette", () => {
 // Theme-native header
 // ---------------------------------------------------------------------------
 
-test("header colors come from semantic tokens; brand title is accent+bold", () => {
+test("boxed header colors come from semantic tokens; brand title is text+bold", () => {
   const theme = fakeTheme();
   const ctx = fakeCtx();
 
-  const lines = renderHeader(ctx, 80, undefined, theme);
+  const lines = renderHeader(ctx, 80, { style: "boxed", version: "0.5.0" }, theme);
   assert.equal(lines.length, 3);
   const all = lines.join("\n");
-  assert.match(all, /\x1b\[94m/);
+  assert.match(all, /\x1b\[39m/);
   assert.match(all, /\x1b\[37m/);
   assert.match(all, /\x1b\[90m/, "borders/separators use the dim token");
   assert.ok(!GROKNIGHT_TRUECOLOR.test(all), `header must not emit fixed truecolor ANSI: ${all}`);

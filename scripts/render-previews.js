@@ -12,6 +12,8 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as os from "node:os";
+import { spawnSync } from "node:child_process";
 import { Theme } from "@earendil-works/pi-coding-agent";
 import { renderGrokFooter, DEFAULT_FOOTER_CONFIG, visibleWidth, stripOsc8 } from "../footer.ts";
 import { renderHeader, DEFAULT_HEADER_OPTIONS } from "../header.ts";
@@ -53,58 +55,51 @@ export function loadBundledTheme(name) {
   return new Theme(fgColors, bgColors, "truecolor", { name: json.name });
 }
 
-/**
- * Fixed preview workspace so committed SVGs are machine-independent.
- * HOME is set to the fixture root so formatCwd emits `~/pi/pi-grok-theme`,
- * and the fixture `.git/HEAD` pins the branch to `main`.
- */
-export const PREVIEW_HOME = path.join(ROOT, "test", "fixtures", "preview-home");
+/** Preview paths are labels only: no filesystem access or HOME mutation. */
+export const PREVIEW_HOME = os.homedir();
 export const PREVIEW_CWD = path.join(PREVIEW_HOME, "pi", "pi-grok-theme");
-
-/** Ensure the fixture cwd has a fake git HEAD (nested .git cannot be committed). */
-export function ensurePreviewFixture() {
-  const gitHead = path.join(PREVIEW_CWD, ".git", "HEAD");
-  fs.mkdirSync(path.dirname(gitHead), { recursive: true });
-  fs.writeFileSync(gitHead, "ref: refs/heads/main\n");
-}
-
-/** A representative in-turn chrome snapshot: header + wide + narrow footer. */
+export function ensurePreviewFixture() {}
 export function renderChromeLines(themeName) {
-  ensurePreviewFixture();
   const theme = loadBundledTheme(themeName);
   const now = Date.now();
-  const prevHome = process.env.HOME;
-  process.env.HOME = PREVIEW_HOME;
-
-  try {
-    const ctx = {
-      hasUI: true,
-      mode: "tui",
-      cwd: PREVIEW_CWD,
-      model: {
-        name: "claude-3.7-sonnet",
-        id: "anthropic/claude-3.7-sonnet",
-        contextWindow: 200000,
-      },
-      getContextUsage: () => ({ usedTokens: 48000, contextWindow: 200000, percent: 24 }),
-      thinkingLevel: "high",
-    };
-    const statuses = new Map([["velocity", "19.6 / 23.2 tps"]]);
-
-    const status = new WorkingStateController();
-    status.startTurn(now);
-    status.startTool("bash", now);
-
-    const config = { ...DEFAULT_FOOTER_CONFIG, preset: "default" };
-    return {
-      header: renderHeader(ctx, 100, { ...DEFAULT_HEADER_OPTIONS, version: VERSION }, theme),
-      wideFooter: renderGrokFooter(ctx, status, 120, statuses, config, theme),
-      narrowFooter: renderGrokFooter(ctx, status, 44, statuses, config, theme),
-    };
-  } finally {
-    if (prevHome === undefined) delete process.env.HOME;
-    else process.env.HOME = prevHome;
-  }
+  const ctx = {
+    hasUI: true, mode: "tui", cwd: PREVIEW_CWD,
+    model: { name: "claude-sonnet-4", id: "anthropic/claude-sonnet-4", contextWindow: 200000 },
+    getContextUsage: () => ({ tokens: 48000, contextWindow: 200000, percent: 24 }),
+    thinkingLevel: "high",
+  };
+  const gitSnapshot = { state: "ready", branch: "main", staged: 2, dirty: 1, untracked: 3 };
+  const status = new WorkingStateController();
+  status.startTurn(now); status.startTool("bash", now);
+  // Fixed timestamps through the public badge seam keep all output deterministic.
+  const liveBadge = status.getBadge.bind(status);
+  status.getBadge = (_now, motion) => liveBadge(now + 3200, motion);
+  const config = { ...DEFAULT_FOOTER_CONFIG, preset: "default", gitSnapshot, glyphDensity: "unicode" };
+  const header = { ...DEFAULT_HEADER_OPTIONS, getGitSnapshot: () => gitSnapshot };
+  const row = (width, overrides = {}, context = ctx) => renderGrokFooter(context, status, width, new Map(), { ...config, ...overrides }, theme);
+  return {
+    header: renderHeader(ctx, 100, header, theme),
+    boxedHeader: renderHeader(ctx, 100, { ...header, style: "boxed" }, theme),
+    wideFooter: row(120), narrowFooter: row(44), tinyFooter: row(20),
+    quietFooter: row(120, { motion: "quiet" }),
+    asciiFooter: row(80, { glyphDensity: "ascii", separator: " | " }),
+    pressureFooter: row(80, {}, { ...ctx, getContextUsage: () => ({ percent: 90 }) }),
+    unknownFooter: row(100, { gitSnapshot: { state: "error", branch: "main" } }),
+    longFooter: row(40, {}, { ...ctx, model: { name: "vendor/very-long-unknown-model-name", contextWindow: 200000 } }),
+    idleFooter: renderGrokFooter(ctx, new WorkingStateController(), 120, new Map(), config, theme),
+  };
+}
+export function chromePreviewSections(name) {
+  const c = renderChromeLines(name);
+  return [
+    { caption: `${name} — compact header (opt-in)`, lines: c.header },
+    { caption: "boxed header — existing style remains available", lines: c.boxedHeader },
+    { caption: "footer — 120 cols; left metadata / right activity", lines: c.wideFooter },
+    { caption: "narrow footer — 44 / 20 cols; core fields retained", lines: [...c.narrowFooter, ...c.tinyFooter] },
+    { caption: "quiet — integer seconds; static indicator in host", lines: c.quietFooter },
+    { caption: "ASCII — 80 cols", lines: c.asciiFooter },
+    { caption: "context pressure / unknown Git / long model / idle", lines: [...c.pressureFooter, ...c.unknownFooter, ...c.longFooter, ...c.idleFooter] },
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -126,40 +121,33 @@ const BASIC_SGR = {
 /** Walk a styled line, grouping runs of identical SGR state. */
 export function parseAnsiRuns(line) {
   const runs = [];
-  let fg = null;
-  let bold = false;
-  let text = "";
-  let i = 0;
-  const flush = () => {
-    if (text) runs.push({ text, fg, bold });
-    text = "";
-  };
-  while (i < line.length) {
-    const char = line[i];
-    if (char === "\x1b" && line[i + 1] === "[") {
-      const end = line.indexOf("m", i + 2);
-      if (end === -1) break; // dangling escape — cannot happen in chrome output
-      const code = line.slice(i + 2, end);
-      flush();
-      if (code === "0" || code === "") {
-        fg = null;
-        bold = false;
-      } else if (code === "1") bold = true;
-      else if (code === "22") bold = false;
-      else if (code === "39") fg = null;
-      else if (code.startsWith("38;2;")) {
-        const [r, g, b] = code.slice(5).split(";");
-        fg = `rgb(${r},${g},${b})`;
-      } else if (/^\d+$/.test(code)) {
-        fg = BASIC_SGR[code] ?? null;
-      }
-      i = end + 1;
-    } else {
-      text += char;
-      i += 1;
+  let fg = null, bg = null, bold = false, italic = false, underline = false;
+  const sgr = /\x1b\[([0-9;]*)m/g;
+  let start = 0;
+  for (const match of line.matchAll(sgr)) {
+    if (match.index > start) runs.push({ text: line.slice(start, match.index), fg, bg, bold, italic, underline });
+    const codes = (match[1] || "0").split(";").map(Number);
+    for (let i = 0; i < codes.length; i++) {
+      const code = codes[i];
+      if (code === 0) { fg = bg = null; bold = italic = underline = false; }
+      else if (code === 1) bold = true;
+      else if (code === 22) bold = false;
+      else if (code === 3) italic = true;
+      else if (code === 23) italic = false;
+      else if (code === 4) underline = true;
+      else if (code === 24) underline = false;
+      else if (code === 39) fg = null;
+      else if (code === 49) bg = null;
+      else if ((code === 38 || code === 48) && codes[i + 1] === 2) {
+        const color = `rgb(${codes.slice(i + 2, i + 5).join(",")})`;
+        if (code === 38) fg = color; else bg = color;
+        i += 4;
+      } else if (BASIC_SGR[code]) fg = BASIC_SGR[code];
+      else if (code >= 40 && code <= 47) bg = BASIC_SGR[code - 10];
     }
+    start = match.index + match[0].length;
   }
-  flush();
+  if (start < line.length) runs.push({ text: line.slice(start), fg, bg, bold, italic, underline });
   return runs;
 }
 
@@ -172,7 +160,7 @@ const xmlEscape = (s) =>
  * `sections` is an ordered list of { caption, lines } — lines are positioned
  * by visible column so runs stay aligned regardless of glyph width.
  */
-export function toTerminalSvg({ background, sections }) {
+export function toTerminalSvg({ background, foreground = "#E1E1E1", sections }) {
   const allLines = sections.flatMap((section) => section.lines);
   const maxCols = Math.max(...allLines.map((l) => visibleWidth(stripOsc8(l))), 40);
   const width = Math.ceil(maxCols * CHAR_WIDTH + PAD * 2);
@@ -184,7 +172,7 @@ export function toTerminalSvg({ background, sections }) {
   const parts = [];
   let y = PAD + 14;
 
-  const MONO = "'JetBrains Mono','SF Mono',Menlo,Consolas,monospace";
+  const MONO = "'DejaVu Sans Mono','Noto Sans Mono',monospace";
 
   for (const section of sections) {
     parts.push(
@@ -195,9 +183,12 @@ export function toTerminalSvg({ background, sections }) {
       const line = stripOsc8(rawLine);
       let col = 0;
       for (const run of parseAnsiRuns(line)) {
-        const attrs = [`fill="${run.fg ?? "rgb(210,210,210)"}"`];
+        const attrs = [`fill="${run.fg ?? foreground}"`];
         if (run.bold) attrs.push('font-weight="600"');
+        if (run.italic) attrs.push('font-style="italic"');
+        if (run.underline) attrs.push('text-decoration="underline"');
         const x = (PAD + col * CHAR_WIDTH).toFixed(1);
+        if (run.bg) parts.push(`<rect x="${x}" y="${y - 19}" width="${visibleWidth(run.text) * CHAR_WIDTH}" height="${LINE_HEIGHT}" fill="${run.bg}"/>`);
         parts.push(
           `<text x="${x}" y="${y}" xml:space="preserve" font-family=${JSON.stringify(MONO)} font-size="14" ${attrs.join(" ")}>${xmlEscape(run.text)}</text>`,
         );
@@ -215,6 +206,20 @@ ${parts.join("\n")}
 `;
 }
 
+/** A separate public-host theme session prevents global theme state leaking. */
+export function contentPreviewSections(name) {
+  const runtime = fs.mkdtempSync(path.join(ROOT, ".preview-runtime-"));
+  try {
+    fs.symlinkSync(path.join(ROOT, "themes"), path.join(runtime, "themes"), "dir");
+    const result = spawnSync(process.execPath, [path.join(ROOT, "scripts", "render-content-preview.js"), name, path.join(runtime, "content.json")], {
+      cwd: ROOT, encoding: "utf8", timeout: 10000,
+      env: { ...process.env, PI_CODING_AGENT_DIR: runtime, COLORTERM: "truecolor", TERM: "xterm-256color" },
+    });
+    if (result.status !== 0) throw new Error(result.stderr || result.error?.message || "Content preview failed");
+    return JSON.parse(fs.readFileSync(path.join(runtime, "content.json"), "utf8"));
+  } finally { fs.rmSync(runtime, { recursive: true, force: true }); }
+}
+
 /** Generate one preview SVG per bundled theme and write them to docs/previews. */
 export function renderAllPreviews() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -224,15 +229,15 @@ export function renderAllPreviews() {
     const json = JSON.parse(fs.readFileSync(path.join(ROOT, "themes", `${name}.json`), "utf8"));
     const svg = toTerminalSvg({
       background: json.vars.terminalBg,
-      sections: [
-        { caption: `${name} — header (opt-in via /grok header)`, lines: chrome.header },
-        { caption: "footer — wide layout (default preset, 120 cols)", lines: chrome.wideFooter },
-        { caption: "footer — narrow layout (44 cols): compact model + context %", lines: chrome.narrowFooter },
-      ],
+      foreground: json.vars.fg,
+      sections: chromePreviewSections(name),
     });
     const out = path.join(OUT_DIR, `${name}.svg`);
     fs.writeFileSync(out, svg);
     written.push(path.relative(ROOT, out));
+    const contentOut = path.join(OUT_DIR, `${name}-content.svg`);
+    fs.writeFileSync(contentOut, toTerminalSvg({ background: json.vars.terminalBg, foreground: json.vars.fg, sections: contentPreviewSections(name) }));
+    written.push(path.relative(ROOT, contentOut));
   }
   return written;
 }

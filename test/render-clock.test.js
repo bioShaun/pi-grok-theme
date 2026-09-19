@@ -244,15 +244,15 @@ test("message_update bursts produce bounded renders; message_end stops and rende
   assert.ok(afterStart >= 1, "turn start requests an immediate render");
   assert.equal(h.wheel.armed.length, 1, "render clock armed");
 
-  // Token burst: 40 updates coalesce into zero extra immediate renders.
+  // First streaming transition is immediate; the remaining tokens coalesce.
   for (let i = 0; i < 40; i++) {
     h.listeners.message_update({ message: { role: "assistant" } }, h.fakeCtx);
   }
-  assert.equal(tuiRenders(), afterStart, "updates must not force unbounded renders");
+  assert.equal(tuiRenders(), afterStart + 1, "only the phase transition renders immediately");
 
   // One clock tick flushes.
   h.wheel.tick();
-  assert.equal(tuiRenders(), afterStart + 1, "tick coalesces the burst into one render");
+  assert.equal(tuiRenders(), afterStart + 2, "tick coalesces the burst into one render");
 
   // Turn end: final render, timer stopped.
   h.listeners.message_end({ message: { role: "assistant" } }, h.fakeCtx);

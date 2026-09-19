@@ -1,44 +1,147 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="998" height="282" viewBox="0 0 998 282">
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="650" viewBox="0 0 1040 650">
 <rect width="100%" height="100%" fill="#EEEEEE"/>
-<text x="16" y="30" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">grok-build-day — header (opt-in via /grok header)</text>
-<text x="16.0" y="56" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)">╭─</text>
-<text x="32.8" y="56" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(46,92,184)"> GROK BUILD </text>
-<text x="133.6" y="56" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)">─────────────────────────────────────────────────────────────────────────────────────╮</text>
-<text x="16.0" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)">│</text>
-<text x="24.4" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)">  </text>
-<text x="41.2" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)">📁 ~/pi/pi-grok-theme</text>
-<text x="217.6" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
-<text x="242.8" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(46,92,184)">⎇ main</text>
-<text x="293.2" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
-<text x="318.4" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(108,108,108)">model: </text>
-<text x="377.2" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)">claude-3.7-sonnet</text>
-<text x="520.0" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
-<text x="545.2" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)">v0.5.0</text>
-<text x="595.6" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)">                              </text>
-<text x="847.6" y="82" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)">│</text>
-<text x="16.0" y="108" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)">╰──────────────────────────────────────────────────────────────────────────────────────────────────╯</text>
-<text x="16" y="148" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">footer — wide layout (default preset, 120 cols)</text>
-<text x="16.0" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(108,108,108)">~/pi/pi-grok-theme</text>
-<text x="167.2" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)">  </text>
-<text x="184.0" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(46,92,184)">⎇ main</text>
-<text x="234.4" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
-<text x="259.6" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(108,108,108)">claude-3.7-sonnet</text>
-<text x="402.4" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
-<text x="427.6" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(108,108,108)">⇣48k/200k (24%)</text>
-<text x="553.6" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
-<text x="578.8" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(108,108,108)">19.6 / 23.2 tps</text>
-<text x="704.8" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
-<text x="730.0" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(108,108,108)">✻ high</text>
-<text x="780.4" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
-<text x="805.6" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(180,83,9)">●</text>
-<text x="814.0" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)"> </text>
-<text x="822.4" y="174" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(108,108,108)">running bash (0.0s)</text>
-<text x="16" y="214" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">footer — narrow layout (44 cols): compact model + context %</text>
-<text x="16.0" y="240" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(108,108,108)">sonnet-3.7</text>
-<text x="100.0" y="240" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
-<text x="125.2" y="240" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(108,108,108)">24%</text>
-<text x="150.4" y="240" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
-<text x="175.6" y="240" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(180,83,9)">●</text>
-<text x="184.0" y="240" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(210,210,210)"> </text>
-<text x="192.4" y="240" xml:space="preserve" font-family="'JetBrains Mono','SF Mono',Menlo,Consolas,monospace" font-size="14" fill="rgb(108,108,108)">running bash (0.0s)</text>
+<text x="16" y="30" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">grok-build-day — compact header (opt-in)</text>
+<text x="16.0" y="56" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">▸ pi-grok-theme</text>
+<text x="142.0" y="56" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="167.2" y="56" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">⎇ main</text>
+<text x="16" y="96" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">boxed header — existing style remains available</text>
+<text x="16.0" y="122" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)">╭─</text>
+<text x="32.8" y="122" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A"> GROK BUILD </text>
+<text x="133.6" y="122" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)">─────────────────────────────────────────────────────────────────────────────────────╮</text>
+<text x="16.0" y="148" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)">│</text>
+<text x="24.4" y="148" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A"> </text>
+<text x="32.8" y="148" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">▸ ~/pi/pi-grok-theme</text>
+<text x="200.8" y="148" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="226.0" y="148" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">⎇ main</text>
+<text x="276.4" y="148" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="301.6" y="148" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">model: </text>
+<text x="360.4" y="148" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">claude-sonnet-4</text>
+<text x="486.4" y="148" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="511.6" y="148" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">v0.5.0</text>
+<text x="562.0" y="148" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">                                  </text>
+<text x="847.6" y="148" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)">│</text>
+<text x="16.0" y="174" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)">╰──────────────────────────────────────────────────────────────────────────────────────────────────╯</text>
+<text x="16" y="214" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">footer — 120 cols; left metadata / right activity</text>
+<text x="16.0" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">claude-sonnet-4</text>
+<text x="142.0" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="167.2" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">⎇ main</text>
+<text x="217.6" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(63,98,18)"> +2</text>
+<text x="242.8" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(146,64,14)"> ~1</text>
+<text x="268.0" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)"> ?3</text>
+<text x="293.2" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="318.4" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">⇣48k/200k (24%)</text>
+<text x="444.4" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="469.6" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">✻ high</text>
+<text x="520.0" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="545.2" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">~/pi/pi-grok-theme</text>
+<text x="696.4" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">               </text>
+<text x="822.4" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(146,64,14)">●</text>
+<text x="830.8" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A"> </text>
+<text x="839.2" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">running bash</text>
+<text x="940.0" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">      </text>
+<text x="990.4" y="240" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">3.2s</text>
+<text x="16" y="280" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">narrow footer — 44 / 20 cols; core fields retained</text>
+<text x="16.0" y="306" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">sonnet-4</text>
+<text x="83.2" y="306" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="108.4" y="306" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">⎇ main</text>
+<text x="158.8" y="306" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="184.0" y="306" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">24%</text>
+<text x="209.2" y="306" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="234.4" y="306" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">✻ high</text>
+<text x="284.8" y="306" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="310.0" y="306" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(146,64,14)">●</text>
+<text x="318.4" y="306" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A"> </text>
+<text x="326.8" y="306" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">tool</text>
+<text x="16.0" y="332" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">sonnet-4</text>
+<text x="83.2" y="332" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="108.4" y="332" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(146,64,14)">●</text>
+<text x="116.8" y="332" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A"> </text>
+<text x="125.2" y="332" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">tool</text>
+<text x="16" y="372" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">quiet — integer seconds; static indicator in host</text>
+<text x="16.0" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">claude-sonnet-4</text>
+<text x="142.0" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="167.2" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">⎇ main</text>
+<text x="217.6" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(63,98,18)"> +2</text>
+<text x="242.8" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(146,64,14)"> ~1</text>
+<text x="268.0" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)"> ?3</text>
+<text x="293.2" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="318.4" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">⇣48k/200k (24%)</text>
+<text x="444.4" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="469.6" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">✻ high</text>
+<text x="520.0" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="545.2" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">~/pi/pi-grok-theme</text>
+<text x="696.4" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">               </text>
+<text x="822.4" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(146,64,14)">●</text>
+<text x="830.8" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A"> </text>
+<text x="839.2" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">running bash</text>
+<text x="940.0" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">        </text>
+<text x="1007.2" y="398" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">3s</text>
+<text x="16" y="438" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">ASCII — 80 cols</text>
+<text x="16.0" y="464" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">claude-sonnet-4</text>
+<text x="142.0" y="464" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> | </text>
+<text x="167.2" y="464" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)"># main</text>
+<text x="217.6" y="464" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(63,98,18)"> +2</text>
+<text x="242.8" y="464" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(146,64,14)"> ~1</text>
+<text x="268.0" y="464" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)"> ?3</text>
+<text x="293.2" y="464" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> | </text>
+<text x="318.4" y="464" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">v48k/200k (24%)</text>
+<text x="444.4" y="464" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">     </text>
+<text x="486.4" y="464" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(146,64,14)">*</text>
+<text x="494.8" y="464" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A"> </text>
+<text x="503.2" y="464" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">running bash</text>
+<text x="604.0" y="464" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">      </text>
+<text x="654.4" y="464" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">3.2s</text>
+<text x="16" y="504" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="11" letter-spacing="0.5" fill="rgba(128,128,128,0.9)">context pressure / unknown Git / long model / idle</text>
+<text x="16.0" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">claude-sonnet-4</text>
+<text x="142.0" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="167.2" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">⎇ main</text>
+<text x="217.6" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(63,98,18)"> +2</text>
+<text x="242.8" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(146,64,14)"> ~1</text>
+<text x="268.0" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)"> ?3</text>
+<text x="293.2" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="318.4" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(185,28,28)">90%</text>
+<text x="343.6" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="368.8" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">✻ high</text>
+<text x="419.2" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">        </text>
+<text x="486.4" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(146,64,14)">●</text>
+<text x="494.8" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A"> </text>
+<text x="503.2" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">running bash</text>
+<text x="604.0" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">      </text>
+<text x="654.4" y="530" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">3.2s</text>
+<text x="16.0" y="556" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">claude-sonnet-4</text>
+<text x="142.0" y="556" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="167.2" y="556" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">⎇ main</text>
+<text x="217.6" y="556" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(146,64,14)"> git?</text>
+<text x="259.6" y="556" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="284.8" y="556" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">⇣48k/200k (24%)</text>
+<text x="410.8" y="556" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="436.0" y="556" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">✻ high</text>
+<text x="486.4" y="556" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">                    </text>
+<text x="654.4" y="556" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(146,64,14)">●</text>
+<text x="662.8" y="556" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A"> </text>
+<text x="671.2" y="556" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">running bash</text>
+<text x="772.0" y="556" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">      </text>
+<text x="822.4" y="556" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">3.2s</text>
+<text x="16.0" y="582" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">very-long-unknown-model-name</text>
+<text x="251.2" y="582" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="276.4" y="582" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(146,64,14)">●</text>
+<text x="284.8" y="582" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A"> </text>
+<text x="293.2" y="582" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">tool</text>
+<text x="16.0" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">claude-sonnet-4</text>
+<text x="142.0" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="167.2" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">⎇ main</text>
+<text x="217.6" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(63,98,18)"> +2</text>
+<text x="242.8" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(146,64,14)"> ~1</text>
+<text x="268.0" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)"> ?3</text>
+<text x="293.2" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="318.4" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">⇣48k/200k (24%)</text>
+<text x="444.4" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="469.6" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">✻ high</text>
+<text x="520.0" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(156,156,156)"> · </text>
+<text x="545.2" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">~/pi/pi-grok-theme</text>
+<text x="696.4" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">               </text>
+<text x="822.4" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">○</text>
+<text x="830.8" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A"> </text>
+<text x="839.2" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="rgb(88,88,88)">idle</text>
+<text x="872.8" y="608" xml:space="preserve" font-family="'DejaVu Sans Mono','Noto Sans Mono',monospace" font-size="14" fill="#1A1A1A">                  </text>
 </svg>

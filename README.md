@@ -37,9 +37,7 @@ TokyoNight Accents (#7AA2F7 Blue, #7DCFFF Cyan, #E0AF68 Amber Gold, #9ECE6A Gree
 ### Terminal Preview
 
 ```text
-╭─ GROK BUILD ─────────────────────────────────────────────────────────────╮
-│ 📁 my-project  ⎇ main  ·  model: claude-3.7-sonnet  ·  v0.3.0            │
-╰──────────────────────────────────────────────────────────────────────────╯
+▸ my-project · ⎇ main
 
 ✓ read_file src/auth.ts (1.2s)
 ✓ bash npm test (842ms)
@@ -47,7 +45,7 @@ TokyoNight Accents (#7AA2F7 Blue, #7DCFFF Cyan, #E0AF68 Amber Gold, #9ECE6A Gree
 ● thinking (1.4s)
 
 ────────────────────────────────────────────────────────────────────────────
-~/my-project  main · claude-3.7-sonnet · ⇣48k/200k (24%) · ✻ high · ● working (3.1s)
+claude-3.7-sonnet · ⎇ main · ⇣48k/200k (24%) · ✻ high          ● working  3.1s
 ```
 
 > Trustworthy preview assets (rendered deterministically from the real chrome
@@ -66,18 +64,21 @@ TokyoNight Accents (#7AA2F7 Blue, #7DCFFF Cyan, #E0AF68 Amber Gold, #9ECE6A Gree
 
 ---
 
-## 🆕 What's New in v0.4 — Adaptive Chrome
+## 🆕 Current Adaptive Chrome
 
-v0.4 turns the presentation layer into **theme-native adaptive chrome**:
+The presentation layer provides theme-native, responsive chrome with durable preferences:
 
-- **Theme-native chrome.** Footer, header, status badge, and `/grok` notifications take every color from the active Pi theme's semantic tokens — no more hard-coded GrokNight ANSI. Dark and day themes (and third-party themes) render natively, and switching themes recolors chrome instantly. The OSC 12 cursor follows a named-theme policy: bundled darks use Grok amber `#E0AF68`, `grok-build-day` uses a darker amber `#B45309`, unknown themes keep the terminal default.
-- **Grok working indicator.** While Pi streams, the one-column Braille spinner (`⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧`, 120 ms cadence) animates in the active theme's accent. Legacy terminals get ASCII `| / - \`. Pi's default indicator is restored on shutdown, and the footer never shows a second animated spinner.
+- **Theme-native chrome.** Footer, header, status badge, and `/grok` notifications take every color from the active Pi theme's semantic tokens — no more hard-coded GrokNight ANSI. Branches and untracked counts stay neutral, icons use a predictable monochrome family, and the day theme uses accessible gray roles for readable secondary text. Dark, day, and third-party themes render natively. The OSC 12 cursor follows a named-theme policy: bundled darks use Grok amber `#E0AF68`, `grok-build-day` uses a darker amber `#B45309`, unknown themes keep the terminal default.
+- **Controlled motion.** `normal` uses Pi's supported animated working indicator. `quiet` requests one static frame and reduces plugin timers to integer seconds with fewer redraws. If the installed Pi host cannot customize its indicator, the command reports that limitation while the rest of quiet mode remains active.
 - **Context pressure metric.** The footer shows Grok's compact token notation `⇣48k/200k (24%)` (compact: `24%`), escalating through semantic tones at 65% (accent), 80% (warning), and 90% (error). Missing usage data renders no fabricated segment.
 - **Dual timing + coalesced renders.** The status label shows **phase** time (resets per thinking/streaming/tool transition); the `full` preset adds whole-turn time. Renders are coalesced on a 250 ms clock — token bursts no longer force per-token redraws.
-- **Footer presets.** `/grok footer auto|minimal|full` switches presentations immediately: `auto` (default responsive hierarchy), `minimal` (model · context · status), `full` (everything + turn time).
+- **Footer presets.** `/grok footer default|minimal|full` switches presentations immediately. `default` is the responsive default; the old `auto` spelling remains a migration alias.
+- **Asynchronous Git status.** Git discovery and status run outside rendering with a short cache. Refreshes retain the last good snapshot; a failed read shows `git?` and hides unreliable counts instead of looking like a clean worktree.
+- **Unified glyph policy.** `auto` is the default glyph preference, with explicit `unicode`, `nerd`, and `ascii` modes. The same resolved choice drives Footer, Header, title, separators, and the working indicator.
+- **Compact Header and two-zone Footer.** Header remains off by default and opens in a one-line compact style. At 80 columns and wider, the Footer reserves a stable 24-column activity zone on the right; narrower layouts preserve the model and activity core before optional metadata.
 - **Direct theme switching.** `/grok theme` lists installed themes (active marked); `/grok theme <name|coding|minimal|day>` switches instantly with argument completion, reporting host errors without changing the active theme on failure.
-- **Legacy glyph fallback.** `PI_GROK_LEGACY_GLYPHS=1` forces ASCII chrome glyphs; automatic on Windows outside modern terminals; `PI_GROK_LEGACY_GLYPHS=0` overrides detection.
-- **Compatibility.** On older Pi versions every new UI API is feature-detected: the extension keeps v0.3 behavior instead of failing. Footer presets are session-local.
+- **Reliable preferences.** UI choices persist atomically in `pi-grok-theme.json` under the Pi agent directory. A failed save keeps the session change, preserves the previous file, and produces one clear notification.
+- **Compatibility.** New UI APIs are feature-detected. The chrome extension targets Pi; omp receives the generated palette files only, without Pi's Footer, Header, commands, or motion behavior.
 
 ---
 
@@ -105,7 +106,7 @@ pi install . -l
 ### Install themes: Pi vs Oh My Pi (omp)
 
 - **Pi:** themes ship via this package (`package.json` → `pi.themes` → `themes/grok-build*.json`).
-- **omp:** copy or symlink files from `themes/omp/` into your omp themes directory. These JSON files add `pythonMode` and `statusLine*` tokens and are **not** registered in `pi.themes`.
+- **omp:** copy or symlink files from `themes/omp/` into your omp themes directory. These JSON files add `pythonMode` and `statusLine*` tokens and are **not** registered in `pi.themes`. This is palette export only; the Pi chrome extension is not ported to omp.
 
 ### Or configure in `~/.pi/agent/settings.json`
 Add the package repository to your Pi settings packages list:
@@ -154,7 +155,8 @@ pi --use-theme grok-build-coding
 
 All previews are generated by `npm run previews` from the real rendering path
 (bundled theme JSON → genuine Pi `Theme` instances → `renderHeader` /
-`renderGrokFooter` → ANSI→SVG). Narrow and wide footer layouts are both shown:
+`renderGrokFooter` → ANSI→SVG). The three current chrome previews show richer
+compact/boxed Header, wide/narrow Footer, Git, context, and activity scenarios:
 
 | Theme | Preview |
 |---|---|
@@ -165,6 +167,14 @@ All previews are generated by `npm run previews` from the real rendering path
 A release test byte-compares the committed SVGs against a fresh render, so the
 previews can never go stale or hand-drawn.
 
+The companion content showcases use real Pi Markdown, syntax highlighting, tool,
+Diff and filtered-selection renderers in isolated theme sessions:
+[coding](docs/previews/grok-build-coding-content.svg),
+[minimal](docs/previews/grok-build-content.svg), and
+[day](docs/previews/grok-build-day-content.svg).
+Previews assume the matching terminal background and DejaVu Sans Mono or a compatible monospace font.
+They verify static rendering; animation and physical font rendering require terminal checks.
+
 ---
 
 ## 🖥️ UI Extension & Footer
@@ -173,24 +183,26 @@ The Phase 2 presentation extension provides a single-line, responsive statusline
 
 ### Responsive Footer Layouts
 
-- **Standard / Wide Screen (≥ 80 columns):**
+- **Standard / Wide Screen (≥ 80 columns):** the left metadata zone yields to a stable 24-column activity zone at the right edge.
   ```text
-  ~/my-project  main · claude-3.7-sonnet · ⇣48k/200k (24%) · ✻ high · ● working (3.1s)
+  claude-3.7-sonnet · ⎇ main · ⇣48k/200k (24%) · ✻ high          ● working  3.1s
   ```
 
 - **Narrow Screen (< 80 columns):**
   ```text
-  main · sonnet-3.7 · 24% · ● working
+  sonnet-3.7 · ⎇ main · 24% · ● working
   ```
 
 ### Footer Presets
 - `/grok footer` — report the current preset and available values.
-- `/grok footer auto` — responsive hierarchy with all eligible segments (default).
+- `/grok footer default` — responsive hierarchy with all eligible segments (default; legacy `auto` is accepted as an alias).
 - `/grok footer minimal` — model · context · status.
-- `/grok footer full` — cwd · branch · model · context · thinking · turn time · extension statuses · status.
+- `/grok footer full` — model · branch · context · extension statuses · thinking · cwd · turn time · status.
 
-Presets apply immediately and are session-local. Whole-turn timing appears only
-in the `full` preset and only while a turn is active.
+Presets apply immediately and persist across sessions. Whole-turn timing appears
+only in the `full` preset and only while a turn is active. Git refreshes are
+asynchronous: `git?` means status is unknown, and counts are hidden until a
+successful read. A clean repository does not show that marker.
 
 ### Smart Dropping Priority Hierarchy
 When terminal width narrows, segments recede by metadata-driven priority
@@ -210,9 +222,17 @@ never push core fields off-screen):
 - `/grok` or `/grok info`: Inspect current workspace, model, cursor color, and theme status.
 - `/grok theme`: List installed themes (active one marked) with completion support.
 - `/grok theme <name|coding|minimal|day>`: Switch themes directly — refreshes cursor, working indicator, header, and footer; failures leave the active theme unchanged.
-- `/grok footer [auto|minimal|full]`: Switch footer presets immediately.
+- `/grok footer [default|minimal|full]`: Switch Footer presets immediately (`auto` remains a legacy alias).
+- `/grok footer glyphs [auto|unicode|nerd|ascii]`: Query or select the glyph policy. `PI_GROK_LEGACY_GLYPHS=1` always forces ASCII; `=0` resolves `auto` to modern Unicode. Nerd Font glyphs are opt-in.
+- `/grok footer sep [dot|powerline-thin|slash|ascii]`: Query or select the separator. In effective ASCII mode, unsupported decorative separators fall back safely without overwriting the saved selection.
 - `/grok toggle`: Toggle between auto-responsive and always-compact footer density.
-- `/grok header`: Toggle the workspace header banner on or off (opt-in, disabled by default).
+- `/grok header [compact|boxed|on|off]`: Toggle or configure the optional Header. New installs default to off with compact as the first style; an old enabled Header migrates to boxed.
+- `/grok motion [normal|quiet]`: Query or select motion. `normal` is the default; `quiet` uses a static host frame when supported and reduces plugin timer redraws.
+
+Footer, glyph, separator, Header, and motion choices are saved atomically in
+`pi-grok-theme.json`. The directory defaults to `~/.pi/agent` and follows
+`PI_CODING_AGENT_DIR` when set. If a command cannot save, its change still
+applies to the current session and one notification explains that it was not persisted.
 
 ---
 
@@ -258,6 +278,7 @@ pi-grok-theme
 ├── chrome-theme.ts            # Single styling adapter (semantic Pi theme tokens)
 ├── glyphs.ts                  # Capability-aware glyph vocabulary (modern/legacy)
 ├── cursor.ts                  # OSC 12 named-theme cursor policy
+├── git-status.ts              # Async Git snapshot provider
 ├── footer.ts                  # Metadata-driven footer segments, presets & fitting
 ├── header.ts                  # Workspace header banner
 ├── status.ts                  # Semantic activity state controller & status tokens
@@ -302,7 +323,7 @@ not done until `npm run typecheck && npm test` is green.
 ## ⚠️ Known Limitations
 
 - **Prompt arrow (`❯`) cannot be themed.** Replacing it requires swapping the entire editor via `ctx.ui.setEditorComponent`, which is far out of scope for a theme extension.
-- **Window title may be overwritten by Pi core.** The grok-style title (`⚡ grok · <dir> · <branch>`) is applied on `session_start`, but Pi core re-applies its own title when a session is renamed or switched (`updateTerminalTitle()`). The grok title returns on the next session start.
+- **Window title may be overwritten by Pi core.** The title uses the resolved brand glyph and `|` separators (for example, `◇ grok | <dir> | <branch>`, or `#` in ASCII mode). It is applied at session start and updated when the workspace, branch snapshot, or resolved glyphs change. Pi core can overwrite it when renaming or switching a session; it returns on the next session start or a change to those title fields.
 
 ---
 

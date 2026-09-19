@@ -37,9 +37,7 @@ TokyoNight 语义点缀 (#7AA2F7 蓝, #7DCFFF 青, #E0AF68 琥珀金, #9ECE6A �
 ### 终端视觉效果预览
 
 ```text
-╭─ GROK BUILD ─────────────────────────────────────────────────────────────╮
-│ 📁 my-project  ⎇ main  ·  model: claude-3.7-sonnet  ·  v0.3.0            │
-╰──────────────────────────────────────────────────────────────────────────╯
+▸ my-project · ⎇ main
 
 ✓ read_file src/auth.ts (1.2s)
 ✓ bash npm test (842ms)
@@ -47,7 +45,7 @@ TokyoNight 语义点缀 (#7AA2F7 蓝, #7DCFFF 青, #E0AF68 琥珀金, #9ECE6A �
 ● thinking (1.4s)
 
 ────────────────────────────────────────────────────────────────────────────
-~/my-project  main · claude-3.7-sonnet · ⇣48k/200k (24%) · ✻ high · ● working (3.1s)
+claude-3.7-sonnet · ⎇ main · ⇣48k/200k (24%) · ✻ high          ● working  3.1s
 ```
 
 > 可信的预览资产由真实渲染代码确定性生成（非手工绘制），位于
@@ -65,18 +63,21 @@ TokyoNight 语义点缀 (#7AA2F7 蓝, #7DCFFF 青, #E0AF68 琥珀金, #9ECE6A �
 
 ---
 
-## 🆕 v0.4 新特性 —— 自适应主题化 Chrome
+## 🆕 当前自适应 Chrome
 
-v0.4 将展示层升级为**主题原生的自适应 chrome**：
+展示层提供主题原生、响应式且可持久保存偏好的 chrome：
 
-- **主题原生渲染。** Footer、Header、状态徽章与 `/grok` 通知的所有前景色均取自当前 Pi 主题的语义 token——彻底移除硬编码的 GrokNight ANSI。深色、日间与第三方主题都能原生渲染，切换主题即时重着色。OSC 12 光标遵循命名主题策略：捆绑深色主题使用 Grok 琥珀 `#E0AF68`，`grok-build-day` 使用更深的琥珀 `#B45309`，未知主题保留终端默认。
-- **Grok 工作动画。** 流式输出期间，以主题 accent 着色的单列 Braille spinner（`⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧`，120ms 节奏）持续动画。传统终端回退为 ASCII `| / - \`。会话关闭时恢复 Pi 默认指示器，footer 永远不会出现第二个动画 spinner。
+- **主题原生渲染。** Footer、Header、状态徽章与 `/grok` 通知的所有前景色均取自当前 Pi 主题的语义 token——彻底移除硬编码的 GrokNight ANSI。分支和 untracked 计数保持中性，图标采用稳定的单色家族，日间主题以可访问灰阶呈现可读辅助文字。深色、日间与第三方主题都能原生渲染。OSC 12 光标遵循命名主题策略：捆绑深色主题使用 Grok 琥珀 `#E0AF68`，`grok-build-day` 使用更深的琥珀 `#B45309`，未知主题保留终端默认。
+- **可控动效。** `normal` 使用 Pi 支持的动态工作指示器；`quiet` 请求单个静态帧，并把插件计时降为整数秒、减少重绘。如果已安装的 Pi 宿主不能自定义指示器，命令会明确报告限制，quiet 的其余行为仍然有效。
 - **上下文压力指标。** Footer 采用 Grok 紧凑 token 记法 `⇣48k/200k (24%)`（紧凑形态：`24%`），并在 65%（accent）、80%（warning）、90%（error）阈值逐级变色。缺少用量数据时绝不伪造 `0%` 段。
 - **双计时 + 合并渲染。** 状态标签显示**相位**耗时（思考/流式/工具状态切换时重置）；`full` 预设额外显示整轮耗时。渲染通过 250ms 时钟合并——token 突发不再强制逐 token 重绘。
-- **Footer 预设。** `/grok footer auto|minimal|full` 即时切换展示形态：`auto`（默认响应式层级）、`minimal`（model · context · status）、`full`（全部段 + 整轮耗时）。
+- **Footer 预设。** `/grok footer default|minimal|full` 即时切换展示形态。`default` 是默认响应式预设；旧的 `auto` 拼写保留为迁移别名。
+- **异步 Git 状态。** Git 发现与状态读取在渲染路径之外执行并短时缓存。刷新时保留上次成功快照；读取失败显示 `git?` 并隐藏不可靠计数，不会伪装成干净工作区。
+- **统一字形策略。** 字形偏好默认 `auto`，也可显式选择 `unicode`、`nerd` 或 `ascii`。Footer、Header、标题、分隔符和工作指示器共用同一解析结果。
+- **紧凑 Header 与双区 Footer。** Header 默认关闭，首次开启采用单行 compact 样式。80 列及以上时 Footer 在右侧保留稳定的 24 列活动区；更窄时先保住模型与活动状态，再让可选元数据退出。
 - **直接主题切换。** `/grok theme` 列出已安装主题（标记当前主题）；`/grok theme <名称|coding|minimal|day>` 直接切换，支持参数补全；失败时上报主机错误且不改变当前主题。
-- **传统字形回退。** `PI_GROK_LEGACY_GLYPHS=1` 强制 ASCII chrome 字形；在非现代终端的 Windows 上自动启用；`PI_GROK_LEGACY_GLYPHS=0` 可覆盖自动检测。
-- **兼容性。** 在旧版 Pi 上所有新 UI API 均经特性检测：扩展保持 v0.3 行为而不会启动失败。Footer 预设为会话级配置。
+- **可靠偏好保存。** UI 选择原子写入 Pi agent 目录下的 `pi-grok-theme.json`。保存失败时，本次会话修改仍生效，原文件保持完整，并只显示一次清楚通知。
+- **兼容性。** 新 UI API 均经特性检测。Chrome 扩展只支持 Pi；omp 仅获得生成的调色主题文件，不包含 Pi 的 Footer、Header、命令或动效行为。
 
 ---
 
@@ -104,7 +105,7 @@ pi install . -l
 ### 主题安装：Pi vs Oh My Pi (omp)
 
 - **Pi：** 主题随本包发布（`package.json` → `pi.themes` → `themes/grok-build*.json`）。
-- **omp：** 将 `themes/omp/` 下的 JSON 复制或软链到 omp 主题目录。这些文件额外包含 `pythonMode` 与 `statusLine*` 令牌，**不会**注册到 `pi.themes`。
+- **omp：** 将 `themes/omp/` 下的 JSON 复制或软链到 omp 主题目录。这些文件额外包含 `pythonMode` 与 `statusLine*` 令牌，**不会**注册到 `pi.themes`。这里只导出调色主题，Pi chrome 扩展并未移植到 omp。
 
 ### 或在 `~/.pi/agent/settings.json` 中配置
 直接在配置文件中的 `packages` 数组添加仓库地址：
@@ -152,8 +153,8 @@ pi --use-theme grok-build-coding
 ## 🖼️ 可视化预览
 
 全部预览由 `npm run previews` 从真实渲染路径生成（捆绑主题 JSON → 真实 Pi
-`Theme` 实例 → `renderHeader` / `renderGrokFooter` → ANSI→SVG），同时展示
-窄幅与宽幅 footer 布局：
+`Theme` 实例 → `renderHeader` / `renderGrokFooter` → ANSI→SVG）。现有三张
+chrome 预览以更丰富的场景展示 compact/boxed Header、宽窄 Footer、Git、上下文与活动状态：
 
 | 主题 | 预览 |
 |---|---|
@@ -163,6 +164,13 @@ pi --use-theme grok-build-coding
 
 发布测试会逐字节比对已提交的 SVG 与全新渲染结果，预览永远不会过期或被手工篡改。
 
+三张内容展示图使用独立主题会话中的真实 Pi Markdown、语法高亮、工具、Diff 和筛选选中态渲染器：
+[编码主题](docs/previews/grok-build-coding-content.svg)、
+[极简主题](docs/previews/grok-build-content.svg)、
+[日间主题](docs/previews/grok-build-day-content.svg)。
+预览假定终端背景与主题匹配，字体为 DejaVu Sans Mono 或兼容等宽字体。
+静态预览不替代真实终端的字体与动画验证。
+
 ---
 
 ## 🖥️ UI 扩展与状态栏
@@ -171,23 +179,24 @@ Phase 2 提供的 UI 扩展实现完全还原 Grok Build 的紧凑单行状态�
 
 ### 响应式布局自适应
 
-- **标准/宽屏模式（≥ 80 列宽度）：**
+- **标准/宽屏模式（≥ 80 列宽度）：** 左侧元数据区为贴住右边缘的稳定 24 列活动区让出空间。
   ```text
-  ~/my-project  main · claude-3.7-sonnet · ⇣48k/200k (24%) · ✻ high · ● working (3.1s)
+  claude-3.7-sonnet · ⎇ main · ⇣48k/200k (24%) · ✻ high          ● working  3.1s
   ```
 
 - **窄屏模式（< 80 列宽度）：**
   ```text
-  main · sonnet-3.7 · 24% · ● working
+  sonnet-3.7 · ⎇ main · 24% · ● working
   ```
 
 ### Footer 预设
 - `/grok footer`：报告当前预设与可用取值。
-- `/grok footer auto`：响应式层级，包含全部可用段（默认）。
+- `/grok footer default`：响应式层级，包含全部可用段（默认；旧 `auto` 仍作为别名接受）。
 - `/grok footer minimal`：model · context · status。
-- `/grok footer full`：cwd · branch · model · context · thinking · 整轮耗时 · 扩展状态 · status。
+- `/grok footer full`：model · branch · context · 扩展状态 · thinking · cwd · 整轮耗时 · status。
 
-预设即时生效且为会话级。整轮耗时仅在 `full` 预设且轮次进行中显示。
+预设即时生效并跨会话保存。整轮耗时仅在 `full` 预设且轮次进行中显示。
+Git 异步刷新；`git?` 表示状态未知，计数会隐藏到下次成功读取。干净仓库不会显示该标记。
 
 ### 智能折叠优先级
 当终端窗口缩小时，状态栏段按元数据驱动的优先级收缩（status 与 model 永不丢弃；
@@ -206,9 +215,16 @@ Phase 2 提供的 UI 扩展实现完全还原 Grok Build 的紧凑单行状态�
 - `/grok` 或 `/grok info`：查看当前工作区、活跃模型、光标颜色同步及主题状态信息。
 - `/grok theme`：列出已安装主题（标记当前主题），支持参数补全。
 - `/grok theme <名称|coding|minimal|day>`：直接切换主题——同步刷新光标、工作指示器、Header 与 Footer；失败时保持当前主题不变。
-- `/grok footer [auto|minimal|full]`：即时切换 Footer 预设。
+- `/grok footer [default|minimal|full]`：即时切换 Footer 预设（`auto` 保留为旧版别名）。
+- `/grok footer glyphs [auto|unicode|nerd|ascii]`：查询或选择字形策略。`PI_GROK_LEGACY_GLYPHS=1` 始终强制 ASCII；`=0` 让 `auto` 解析为现代 Unicode。Nerd Font 字形只在显式选择时启用。
+- `/grok footer sep [dot|powerline-thin|slash|ascii]`：查询或选择分隔符。有效 ASCII 模式会安全回退不兼容的装饰分隔符，但不会覆写已保存的选择。
 - `/grok toggle`：在自适应模式与强制紧凑模式之间快速切换。
-- `/grok header`：开启/关闭工作区 Header 横幅（默认关闭，按需启用）。
+- `/grok header [compact|boxed|on|off]`：切换或配置可选 Header。新安装默认关闭，首次开启使用 compact；旧配置中已开启的 Header 迁移为 boxed。
+- `/grok motion [normal|quiet]`：查询或选择动效。`normal` 为默认；`quiet` 在宿主支持时使用静态帧，并减少插件计时重绘。
+
+Footer、字形、分隔符、Header 与动效选择会原子保存到 `pi-grok-theme.json`。
+目录默认是 `~/.pi/agent`，设置 `PI_CODING_AGENT_DIR` 时跟随该目录。若命令保存失败，
+修改仍在当前会话生效，并用一次通知说明未持久化。
 
 ---
 
@@ -254,6 +270,7 @@ pi-grok-theme
 ├── chrome-theme.ts            # 唯一样式适配器（语义 Pi theme token）
 ├── glyphs.ts                  # 能力感知字形词汇表（现代/传统）
 ├── cursor.ts                  # OSC 12 命名主题光标策略
+├── git-status.ts              # Async Git snapshot provider
 ├── footer.ts                  # 元数据驱动 Footer 段、预设与拟合
 ├── header.ts                  # 工作区头部 Banner
 ├── status.ts                  # 语义活动状态控制器与消息过滤
@@ -272,6 +289,13 @@ pi-grok-theme
     ├── theme-quality.js
     └── fixtures/theme-schema.json
 ```
+
+---
+
+## 已知限制
+
+- **窗口标题可能被 Pi 核心覆盖。** 标题采用当前解析出的品牌字形与 `|` 分隔符，例如 `◇ grok | <目录> | <分支>`，ASCII 模式使用 `#`。会话启动时应用标题，工作区、分支快照或实际字形变化时更新。Pi 重命名或切换会话可能覆盖标题；下次会话启动或这些标题字段变化时会恢复。
+- 输入框提示符由宿主管理，本扩展不替换编辑器。
 
 ---
 

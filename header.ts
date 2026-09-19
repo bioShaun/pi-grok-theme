@@ -1,24 +1,18 @@
-/**
- * header.ts — Clean Grok-style workspace header for pi-grok-theme
- *
- * Implements a high-contrast, minimalist workspace banner:
- * ╭─ GROK BUILD ────────────────────────────────────────────────────────────╮
- * │ 📁 my-project  ⎇ main  ·  model: claude-3.7-sonnet  ·  v0.2.0           │
- * ╰─────────────────────────────────────────────────────────────────────────╯
- *
- * v0.4: all foreground color comes from the active Pi theme through the
- * chrome adapter; the render path reads the live `ctx.ui.theme` so theme
- * switches recolor the header without reinstalling it.
- */
+/** Compact workspace heading or optional boxed banner, with live semantic colors. */
 
 import * as path from "node:path";
 import type { ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
-import { formatCwd, getGitBranch, truncateToWidth, visibleWidth } from "./footer.ts";
+import { formatCwd, shortenBranch, truncateToWidth, visibleWidth } from "./footer.ts";
 import { createChromeTheme } from "./chrome-theme.ts";
-import { getGlyphs } from "./glyphs.ts";
+import { resolveGlyphs, resolveGlyphDensity, type GlyphDensity } from "./glyphs.ts";
+import type { GitSnapshot } from "./git-status.ts";
+import type { HeaderStyle } from "./settings.ts";
 import { VERSION } from "./version.ts";
 
 export interface HeaderOptions {
+  style?: HeaderStyle;
+  glyphDensity?: GlyphDensity;
+  getGitSnapshot?: () => GitSnapshot;
   showTitle?: boolean;
   showBranch?: boolean;
   showModel?: boolean;
@@ -26,6 +20,7 @@ export interface HeaderOptions {
 }
 
 export const DEFAULT_HEADER_OPTIONS: HeaderOptions = {
+  style: "compact",
   showTitle: true,
   showBranch: true,
   showModel: true,
@@ -41,53 +36,35 @@ export function renderHeader(
   options: HeaderOptions = DEFAULT_HEADER_OPTIONS,
   theme?: Theme | null,
 ): string[] {
-  if (width < 20) return [""];
-
+  if (width <= 0) return [""];
   const chrome = createChromeTheme(theme);
-  const glyphs = getGlyphs();
-  const innerWidth = Math.max(1, width - 4);
-  void innerWidth;
+  const glyphs = resolveGlyphs(options.glyphDensity);
+  const ascii = resolveGlyphDensity(options.glyphDensity) === "ascii";
+  const ellipsis = ascii ? "~" : "…";
+  const cut = (text: string, size: number) => truncateToWidth(text, Math.max(0, size), size > 1 ? ellipsis : "");
   const cwdFormatted = formatCwd(ctx.cwd);
-  const branch = options.showBranch ? getGitBranch(ctx.cwd) : undefined;
-  const rawModel = ctx.model?.name || ctx.model?.id || "";
-
-  // Title / Tag
-  const brandTitle = " GROK BUILD ";
-  const versionTag = options.version ? `v${options.version}` : "";
-
-  // Metadata parts
-  const parts: string[] = [];
-  parts.push(`${chrome.fg("text", `${glyphs.folderMark} ${cwdFormatted}`)}`);
-  if (branch) {
-    parts.push(chrome.fg("accent", `${glyphs.branchMark} ${branch}`));
+  const branch = options.showBranch !== false ? options.getGitSnapshot?.().branch : undefined;
+  const sep = chrome.fg("dim", ascii ? " | " : " · ");
+  if ((options.style ?? "compact") === "compact") {
+    const project = chrome.fg("text", `${glyphs.folderMark} ${path.basename(ctx.cwd) || cwdFormatted}`);
+    const remaining = width - visibleWidth(project) - visibleWidth(sep);
+    const branchLabel = branch && remaining >= 4
+      ? chrome.fg("muted", `${glyphs.branchMark} ${shortenBranch(branch, remaining - 2, ellipsis)}`) : "";
+    return [cut(project + (branchLabel ? sep + branchLabel : ""), width)];
   }
-  if (options.showModel && rawModel) {
-    parts.push(`${chrome.fg("muted", "model: ")}${chrome.fg("text", rawModel)}`);
-  }
-  if (versionTag) {
-    parts.push(chrome.fg("dim", versionTag));
-  }
-
-  const sep = chrome.fg("dim", " · ");
-  const metaContent = parts.join(sep);
-
-  // Borders
-  const borderChar = "─";
-  const titleFormatted = chrome.bold(chrome.fg("accent", brandTitle));
-  const titleWidth = visibleWidth(brandTitle);
-  const topBorderRightLength = Math.max(0, width - 3 - titleWidth);
-
-  const topBorder = `${chrome.fg("dim", "╭─")}${titleFormatted}${chrome.fg("dim", `${borderChar.repeat(topBorderRightLength)}╮`)}`;
-  const bottomBorder = chrome.fg("dim", `╰${borderChar.repeat(width - 2)}╯`);
-
-  const paddedContent = `  ${metaContent}`;
-  const truncatedContent = truncateToWidth(paddedContent, width - 2);
-  const contentWidth = visibleWidth(truncatedContent);
-  const rightPad = Math.max(0, width - 2 - contentWidth);
-
-  const middleLine = `${chrome.fg("dim", "│")}${truncatedContent}${" ".repeat(rightPad)}${chrome.fg("dim", "│")}`;
-
-  return [topBorder, middleLine, bottomBorder];
+  if (width < 4) return ["", cut(cwdFormatted, width), ""];
+  const parts = [chrome.fg("text", `${glyphs.folderMark} ${cwdFormatted}`)];
+  if (branch) parts.push(chrome.fg("muted", `${glyphs.branchMark} ${branch}`));
+  const model = ctx.model?.name || ctx.model?.id;
+  if (options.showModel !== false && model) parts.push(chrome.fg("muted", "model: ") + chrome.fg("text", model));
+  if (options.version) parts.push(chrome.fg("muted", `v${options.version}`));
+  const h = ascii ? "-" : "─";
+  const v = ascii ? "|" : "│";
+  const corners = ascii ? ["+", "+", "+", "+"] : ["╭", "╮", "╰", "╯"];
+  const title = options.showTitle === false ? "" : cut(chrome.bold(chrome.fg("text", " GROK BUILD ")), width - 3);
+  const top = chrome.fg("dim", corners[0]! + h) + title + chrome.fg("dim", h.repeat(Math.max(0, width - 3 - visibleWidth(title))) + corners[1]);
+  const content = cut(" " + parts.join(sep), width - 2);
+  return [top, chrome.fg("dim", v) + content + " ".repeat(width - 2 - visibleWidth(content)) + chrome.fg("dim", v), chrome.fg("dim", corners[2]! + h.repeat(width - 2) + corners[3])];
 }
 
 /**

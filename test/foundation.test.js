@@ -43,8 +43,8 @@ const EXPECTED_GLYPH_WIDTHS = {
   branchMark: 1,
   tokenArrow: 1,
   disclosureArrow: 1,
-  folderMark: 2, // modern 📁; legacy folderMark is width 1
-  brandMark: 2, // modern; legacy brandMark is width 1
+  folderMark: 1, // modern 📁; legacy folderMark is width 1
+  brandMark: 1, // modern; legacy brandMark is width 1
 };
 
 test("glyph vocabulary covers every v0.4 spec key in both modes", () => {
@@ -101,9 +101,9 @@ test("spinner frames: spec frames at the correct cadence vocabulary, one column 
   }
 });
 
-test("token arrow falls back per spec: modern ⇣, legacy ↓", () => {
+test("token arrow falls back per spec: modern ⇣, legacy v", () => {
   assert.equal(MODERN_GLYPHS.tokenArrow, "⇣");
-  assert.equal(LEGACY_GLYPHS.tokenArrow, "↓");
+  assert.equal(LEGACY_GLYPHS.tokenArrow, "v");
 });
 
 test("glyph mode selection: env override beats win32 auto-detection", () => {
@@ -316,7 +316,7 @@ test("resolveGlyphDensity: legacy env wins; nerd never auto", () => {
   assert.equal(resolveGlyphDensity(undefined, {}, "linux"), "unicode");
   assert.equal(resolveGlyphDensity("nerd", {}, "linux"), "nerd");
   assert.notEqual(resolveGlyphDensity(undefined, {}, "linux"), "nerd");
-  assert.deepEqual([...GLYPH_DENSITIES], ["unicode", "nerd", "ascii"]);
+  assert.deepEqual([...GLYPH_DENSITIES], ["auto", "unicode", "nerd", "ascii"]);
 });
 
 test("getGlyphsForDensity returns distinct branch marks for nerd vs unicode", () => {

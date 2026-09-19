@@ -268,3 +268,13 @@ test("omp themes may contain pythonMode/statusLine* extras; Pi themes must not",
     }
   }
 });
+
+test("day readable secondary text and pressure labels meet the new surface gates", () => {
+  const theme = loadTheme("grok-build-day.json");
+  for (const background of ["terminalBg", "surface1", "surface2", "surface3"]) {
+    assert.ok(contrastRatio(theme.vars.muted, theme.vars[background]) >= 4.5, `muted on ${background}`);
+  }
+  for (const token of ["accent", "warning", "error", "success"]) {
+    assert.ok(contrastRatio(resolveColorValue(theme, theme.colors[token]), theme.vars.terminalBg) >= 4.5, token);
+  }
+});

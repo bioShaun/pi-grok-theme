@@ -193,9 +193,9 @@ test("legacy mode swaps every chrome glyph without changing line width", () => {
   status.startTurn(Date.now());
   const ctx = baseCtx();
 
-  const modern = renderGrokFooter(ctx, status, 120, EXT_STATUSES, DEFAULT_FOOTER_CONFIG)[0];
+  const modern = renderGrokFooter(ctx, status, 120, EXT_STATUSES, { ...DEFAULT_FOOTER_CONFIG, gitSnapshot: { state: "ready", branch: "main" } })[0];
   const legacy = withLegacyGlyphs(() =>
-    renderGrokFooter(ctx, status, 120, EXT_STATUSES, DEFAULT_FOOTER_CONFIG)[0],
+    renderGrokFooter(ctx, status, 120, EXT_STATUSES, { ...DEFAULT_FOOTER_CONFIG, gitSnapshot: { state: "ready", branch: "main" } })[0],
   );
 
   assert.ok(legacy.includes("#") && !legacy.includes("⎇"), "branch mark swapped");
@@ -413,7 +413,7 @@ test("dark, day, and third-party themes pass integration-style rendering", () =>
       const [row] = renderGrokFooter(baseCtx(), status, width, EXT_STATUSES, DEFAULT_FOOTER_CONFIG, theme);
       assertRowSafe(row, width, `${palette} footer width=${width}`);
 
-      const headerLines = renderHeader(baseCtx(), width, undefined, theme);
+      const headerLines = renderHeader(baseCtx(), width, { style: "boxed", version: "0.5.0" }, theme);
       assert.equal(headerLines.length, 3, `${palette} header has three lines`);
       for (const line of headerLines) {
         assertAnsiBalanced(line, `${palette} header width=${width}`);

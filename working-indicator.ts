@@ -12,16 +12,18 @@
  */
 
 import type { ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
-import { getGlyphs } from "./glyphs.ts";
+import { resolveGlyphs, type GlyphDensity } from "./glyphs.ts";
+import type { MotionMode } from "./status.ts";
 import { createChromeTheme } from "./chrome-theme.ts";
 
 /** Frame cadence for the working indicator (spec §4.2). */
 export const WORKING_INDICATOR_INTERVAL_MS = 120;
 
 /** Spinner frames colored with the active theme accent. */
-export function coloredSpinnerFrames(theme?: Theme | null): string[] {
+export function coloredSpinnerFrames(theme?: Theme | null, density: GlyphDensity = "auto", motion: MotionMode = "normal"): string[] {
   const chrome = createChromeTheme(theme);
-  return getGlyphs().spinnerFrames.map((frame) => chrome.fg("accent", frame));
+  const glyphs = resolveGlyphs(density);
+  return (motion === "quiet" ? [glyphs.workingDot] : glyphs.spinnerFrames).map((frame) => chrome.fg("accent", frame));
 }
 
 /**
@@ -29,7 +31,7 @@ export function coloredSpinnerFrames(theme?: Theme | null): string[] {
  * Returns true when the indicator was installed, false when the API is
  * unavailable (never throws).
  */
-export function applyWorkingIndicator(ctx: ExtensionContext): boolean {
+export function applyWorkingIndicator(ctx: ExtensionContext, density: GlyphDensity = "auto", motion: MotionMode = "normal"): boolean {
   if (!ctx.hasUI || typeof ctx.ui?.setWorkingIndicator !== "function") {
     return false;
   }
@@ -41,7 +43,7 @@ export function applyWorkingIndicator(ctx: ExtensionContext): boolean {
       theme = undefined;
     }
     ctx.ui.setWorkingIndicator({
-      frames: coloredSpinnerFrames(theme),
+      frames: coloredSpinnerFrames(theme, density, motion),
       intervalMs: WORKING_INDICATOR_INTERVAL_MS,
     });
     return true;

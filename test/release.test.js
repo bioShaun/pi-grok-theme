@@ -15,7 +15,7 @@ import path from "node:path";
 
 import { VERSION } from "../version.ts";
 import { DEFAULT_HEADER_OPTIONS } from "../header.ts";
-import { toTerminalSvg, renderChromeLines } from "../scripts/render-previews.js";
+import { toTerminalSvg, renderChromeLines, chromePreviewSections, contentPreviewSections } from "../scripts/render-previews.js";
 
 const ROOT = path.resolve(new URL(".", import.meta.url).pathname, "..");
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));
@@ -36,11 +36,8 @@ test("committed preview SVGs byte-match a fresh deterministic render", () => {
     const themeJson = JSON.parse(fs.readFileSync(path.join(ROOT, "themes", `${name}.json`), "utf8"));
     const fresh = toTerminalSvg({
       background: themeJson.vars.terminalBg,
-      sections: [
-        { caption: `${name} — header (opt-in via /grok header)`, lines: chrome.header },
-        { caption: "footer — wide layout (default preset, 120 cols)", lines: chrome.wideFooter },
-        { caption: "footer — narrow layout (44 cols): compact model + context %", lines: chrome.narrowFooter },
-      ],
+      foreground: themeJson.vars.fg,
+      sections: chromePreviewSections(name),
     });
     assert.equal(fresh, committed, `${name} preview is stale — run \`npm run previews\``);
   }
@@ -62,6 +59,7 @@ test("package installation contents include every runtime and doc artifact", () 
     "chrome-theme.ts",
     "cursor.ts",
     "footer.ts",
+    "git-status.ts",
     "glyphs.ts",
     "header.ts",
     "render-clock.ts",
@@ -88,5 +86,18 @@ test("package installation contents include every runtime and doc artifact", () 
       fs.existsSync(path.join(ROOT, "docs", "previews", `${name}.svg`)),
       `${name} preview asset committed`,
     );
+  }
+});
+
+// Content uses actual Pi components in an isolated public theme session.
+test("committed content showcases match real host rendering for all themes", () => {
+  for (const name of ["grok-build-coding", "grok-build", "grok-build-day"]) {
+    const json = JSON.parse(fs.readFileSync(path.join(ROOT, "themes", `${name}.json`), "utf8"));
+    const sections = contentPreviewSections(name);
+    assert.ok(sections.some((s) => s.caption.includes("Diff")));
+    assert.ok(sections.some((s) => s.caption.includes("tool error")));
+    const fresh = toTerminalSvg({ background: json.vars.terminalBg, foreground: json.vars.fg, sections });
+    assert.equal(fs.readFileSync(path.join(ROOT, "docs", "previews", `${name}-content.svg`), "utf8"), fresh);
+    assert.ok(fresh.includes("<rect x="), "tool surfaces preserve real background colors");
   }
 });

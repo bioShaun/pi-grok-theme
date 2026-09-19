@@ -1,113 +1,69 @@
-/**
- * settings.ts — persistent footer/header prefs for pi-grok-theme
- *
- * Pi has no package-scoped settings API, so the extension mirrors the host
- * convention of writing under `~/.pi/agent/` (see Pi's own settings.json).
- * Defaults: footer preset `default`, header off, unicode glyphs, dot separator.
- */
-
+/** Persistent preferences. Writes commit a complete snapshot atomically. */
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { randomUUID } from "node:crypto";
 import { FOOTER_PRESETS, SEPARATOR_STYLES, type FooterPreset, type SeparatorStyle } from "./footer.ts";
 import { GLYPH_DENSITIES, type GlyphDensity } from "./glyphs.ts";
-
-export type { GlyphDensity, SeparatorStyle };
-
+import type { MotionMode } from "./status.ts";
+export type { GlyphDensity, SeparatorStyle, MotionMode };
+export type HeaderStyle = "compact" | "boxed";
 export interface GrokThemeSettings {
   footerPreset: FooterPreset;
   showHeader: boolean;
   glyphDensity: GlyphDensity;
   separatorStyle: SeparatorStyle;
+  headerStyle: HeaderStyle;
+  motion: MotionMode;
 }
-
 export const DEFAULT_GROK_SETTINGS: GrokThemeSettings = {
-  footerPreset: "default",
-  showHeader: false,
-  glyphDensity: "unicode",
-  separatorStyle: "dot",
+  footerPreset: "default", showHeader: false, glyphDensity: "auto",
+  separatorStyle: "dot", headerStyle: "compact", motion: "normal",
 };
-
-/** Filename under `~/.pi/agent/` (and under an injected agentDir in tests). */
 export const SETTINGS_FILENAME = "pi-grok-theme.json";
-
 export function defaultSettingsPath(agentDir?: string): string {
-  const dir = agentDir ?? path.join(os.homedir(), ".pi", "agent");
-  return path.join(dir, SETTINGS_FILENAME);
+  return path.join(agentDir ?? process.env.PI_CODING_AGENT_DIR ?? path.join(os.homedir(), ".pi", "agent"), SETTINGS_FILENAME);
 }
-
-function isFooterPreset(value: unknown): value is FooterPreset {
-  return typeof value === "string" && (FOOTER_PRESETS as readonly string[]).includes(value);
+function member<T extends string>(value: unknown, values: readonly T[], fallback: T): T {
+  return typeof value === "string" && values.includes(value as T) ? value as T : fallback;
 }
-
-function isGlyphDensity(value: unknown): value is GlyphDensity {
-  return typeof value === "string" && (GLYPH_DENSITIES as readonly string[]).includes(value);
-}
-
-function isSeparatorStyle(value: unknown): value is SeparatorStyle {
-  return typeof value === "string" && (SEPARATOR_STYLES as readonly string[]).includes(value);
-}
-
-/** Load prefs; missing/invalid files yield defaults. Migrates `auto` → `default` with write-back. Never throws. */
-export function loadSettings(settingsPath: string = defaultSettingsPath()): GrokThemeSettings {
+export function loadSettings(settingsPath = defaultSettingsPath()): GrokThemeSettings {
   try {
-    if (!fs.existsSync(settingsPath)) return { ...DEFAULT_GROK_SETTINGS };
-    const raw = JSON.parse(fs.readFileSync(settingsPath, "utf8")) as Record<string, unknown>;
-    const hadAuto = raw.footerPreset === "auto";
-
-    let footerPreset: FooterPreset;
-    if (hadAuto || raw.footerPreset === undefined || raw.footerPreset === null) {
-      footerPreset = "default";
-    } else if (isFooterPreset(raw.footerPreset)) {
-      footerPreset = raw.footerPreset;
-    } else {
-      footerPreset = DEFAULT_GROK_SETTINGS.footerPreset;
-    }
-
-    const showHeader =
-      typeof raw.showHeader === "boolean" ? raw.showHeader : DEFAULT_GROK_SETTINGS.showHeader;
-    const glyphDensity = isGlyphDensity(raw.glyphDensity)
-      ? raw.glyphDensity
-      : DEFAULT_GROK_SETTINGS.glyphDensity;
-    const separatorStyle = isSeparatorStyle(raw.separatorStyle)
-      ? raw.separatorStyle
-      : DEFAULT_GROK_SETTINGS.separatorStyle;
-
-    const loaded: GrokThemeSettings = { footerPreset, showHeader, glyphDensity, separatorStyle };
-
-    // Write-back when on-disk contained legacy "auto" (best-effort).
-    if (hadAuto) {
+    const raw = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...DEFAULT_GROK_SETTINGS };
+    const loaded: GrokThemeSettings = {
+      footerPreset: member(raw.footerPreset, FOOTER_PRESETS, "default"),
+      showHeader: typeof raw.showHeader === "boolean" ? raw.showHeader : false,
+      glyphDensity: member(raw.glyphDensity, GLYPH_DENSITIES, "auto"),
+      separatorStyle: member(raw.separatorStyle, SEPARATOR_STYLES, "dot"),
+      headerStyle: member(raw.headerStyle, ["compact", "boxed"], raw.headerStyle === undefined && raw.showHeader === true ? "boxed" : "compact"),
+      motion: member(raw.motion, ["normal", "quiet"], "normal"),
+    };
+    if (raw.footerPreset === "auto" || (raw.showHeader === true && raw.headerStyle === undefined)) {
       saveSettings(loaded, settingsPath);
     }
-
     return loaded;
-  } catch {
-    return { ...DEFAULT_GROK_SETTINGS };
-  }
+  } catch { return { ...DEFAULT_GROK_SETTINGS }; }
 }
-
-/** Persist prefs; creates the parent directory when needed. Never throws. Never writes `auto`. */
-export function saveSettings(
-  settings: GrokThemeSettings,
-  settingsPath: string = defaultSettingsPath(),
-): void {
+export type SaveSettingsResult = { success: true } | { success: false; error: string };
+export function saveSettings(settings: GrokThemeSettings, settingsPath = defaultSettingsPath()): SaveSettingsResult {
+  let temporary: string | undefined;
+  let fd: number | undefined;
   try {
-    fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
-    fs.writeFileSync(
-      settingsPath,
-      `${JSON.stringify(
-        {
-          footerPreset: settings.footerPreset,
-          showHeader: settings.showHeader,
-          glyphDensity: settings.glyphDensity,
-          separatorStyle: settings.separatorStyle,
-        },
-        null,
-        2,
-      )}\n`,
-      "utf8",
-    );
-  } catch {
-    // Persistence is best-effort; chrome must keep working without it.
+    const directory = path.dirname(settingsPath);
+    fs.mkdirSync(directory, { recursive: true });
+    temporary = path.join(directory, `.${path.basename(settingsPath)}.${randomUUID()}.pending`);
+    fd = fs.openSync(temporary, "wx", 0o600);
+    fs.writeFileSync(fd, `${JSON.stringify({ ...DEFAULT_GROK_SETTINGS, ...settings }, null, 2)}\n`, "utf8");
+    fs.fsyncSync(fd);
+    fs.closeSync(fd);
+    fd = undefined;
+    fs.renameSync(temporary, settingsPath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  } finally {
+    if (fd !== undefined) { try { fs.closeSync(fd); } catch {} }
+    if (temporary) { try { fs.unlinkSync(temporary); } catch {} }
   }
 }

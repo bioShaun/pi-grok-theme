@@ -2,7 +2,7 @@
  * status.ts — Working indicator & status controller for pi-grok-theme
  *
  * Implements Grok Build-style compact working states:
- * - Single-line minimal indicators: `● working (2.4s)`, `● thinking (1.2s)`, `● running bash...`
+ * - Single-line minimal indicators: `working (2.4s)`, `thinking (1.2s)`, `running bash...`
  * - Working message filtering and sanitization
  * - Duration tracking and state lifecycle
  *
@@ -12,6 +12,8 @@
  */
 
 import type { GlyphKey } from "./glyphs.ts";
+
+export type MotionMode = "normal" | "quiet";
 
 export type AgentActivityState = "idle" | "thinking" | "streaming" | "running_tool" | "working";
 
@@ -30,10 +32,10 @@ export interface StatusBadge {
 }
 
 /** Format milliseconds into concise Grok-style duration string (e.g., 1.4s, 12s, 1m24s) */
-export function formatDuration(elapsedMs: number): string {
+export function formatDuration(elapsedMs: number, motion: MotionMode = "normal"): string {
   if (elapsedMs < 0) return "0.0s";
   const seconds = elapsedMs / 1000;
-  if (seconds < 10) {
+  if (seconds < 10 && motion !== "quiet") {
     return `${seconds.toFixed(1)}s`;
   }
   if (seconds < 60) {
@@ -155,7 +157,7 @@ export class WorkingStateController {
   /**
    * Semantic activity badge — no ANSI. Consumers style via chrome tones + glyphs.
    */
-  public getBadge(now = Date.now()): StatusBadge {
+  public getBadge(now = Date.now(), motion: MotionMode = "normal"): StatusBadge {
     if (this.state === "idle") {
       return {
         state: "idle",
@@ -169,7 +171,7 @@ export class WorkingStateController {
     const turnElapsedMs = this.getTurnElapsedMs(now);
     // Status label shows PHASE time (resets per thinking/streaming/tool
     // transition); turn time rides the semantic badge for the full preset.
-    const durationStr = formatDuration(phaseElapsedMs ?? 0);
+    const durationStr = formatDuration(phaseElapsedMs ?? 0, motion);
 
     let tone: StatusTone;
     let label: string;
@@ -208,7 +210,7 @@ export class WorkingStateController {
    * Filter and compress verbose working messages from Pi into compact Grok tokens.
    * Duration uses the phase clock so it matches the footer badge.
    */
-  public filterWorkingMessage(originalMessage?: string, now = Date.now()): string | undefined {
+  public filterWorkingMessage(originalMessage?: string, now = Date.now(), motion: MotionMode = "normal"): string | undefined {
     // Pass through the host's clear/restore-default contract untouched.
     if (originalMessage === undefined) return undefined;
 
@@ -216,35 +218,35 @@ export class WorkingStateController {
     if (this.state === "idle") return originalMessage;
 
     const elapsed = this.getPhaseElapsedMs(now) ?? 0;
-    const durationStr = formatDuration(elapsed);
+    const durationStr = formatDuration(elapsed, motion);
     const trimmed = originalMessage.trim();
 
     if (!trimmed) {
-      if (this.state === "thinking") return `● thinking (${durationStr})`;
-      if (this.state === "running_tool") return `● ${normalizeToolAction(this.currentTool)} (${durationStr})`;
-      if (this.state === "streaming") return `● generating (${durationStr})`;
-      return `● working (${durationStr})`;
+      if (this.state === "thinking") return `thinking (${durationStr})`;
+      if (this.state === "running_tool") return `${normalizeToolAction(this.currentTool)} (${durationStr})`;
+      if (this.state === "streaming") return `generating (${durationStr})`;
+      return `working (${durationStr})`;
     }
 
     // Check if message is a tool execution announcement
     const lower = trimmed.toLowerCase();
     if (lower.includes("bash") || lower.includes("executing")) {
-      return `● running bash (${durationStr})`;
+      return `running bash (${durationStr})`;
     }
     if (lower.includes("edit") || lower.includes("writing")) {
-      return `● editing file (${durationStr})`;
+      return `editing file (${durationStr})`;
     }
     if (lower.includes("read") || lower.includes("inspect")) {
-      return `● reading file (${durationStr})`;
+      return `reading file (${durationStr})`;
     }
     if (lower.includes("search") || lower.includes("grep")) {
-      return `● searching (${durationStr})`;
+      return `searching (${durationStr})`;
     }
     if (lower.includes("think")) {
-      return `● thinking (${durationStr})`;
+      return `thinking (${durationStr})`;
     }
 
     // Default compact fallback
-    return `● ${trimmed.slice(0, 24)} (${durationStr})`;
+    return `${trimmed.slice(0, 24)} (${durationStr})`;
   }
 }

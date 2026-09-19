@@ -7,14 +7,13 @@
  * - Compact working state controller and working message filtering
  * - Slash command `/grok` for status inspection and configuration
  * - Persistent footer preset + header toggle across sessions
- * - 100% crash resistance and graceful fallback
+ * - Feature-detected host integration and graceful fallback
  */
 
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import {
   installFooter,
-  getGitBranch,
   type FooterConfig,
   type FooterPreset,
   type SeparatorStyle,
@@ -30,8 +29,10 @@ import { RenderClock, type RenderClockOptions } from "./render-clock.ts";
 import { applyCursorPolicy, resetCursorColor, resolveCursorPolicy } from "./cursor.ts";
 import { VERSION } from "./version.ts";
 import { applyWorkingIndicator, restoreWorkingIndicator } from "./working-indicator.ts";
-import { getGlyphs, GLYPH_DENSITIES, type GlyphDensity } from "./glyphs.ts";
-import { loadSettings, saveSettings, type GrokThemeSettings } from "./settings.ts";
+import { resolveGlyphs, resolveGlyphDensity, GLYPH_DENSITIES, type GlyphDensity } from "./glyphs.ts";
+import { loadSettings, saveSettings, type GrokThemeSettings, type HeaderStyle, type MotionMode } from "./settings.ts";
+
+import { GitStatusProvider, type readGitStatus } from "./git-status.ts";
 
 function readThinkingLevel(ctx: ExtensionContext): string | undefined {
   try {
@@ -62,6 +63,7 @@ function activeTheme(ctx: ExtensionContext): Theme | undefined {
 
 export interface RegisterOptions {
   renderClock?: RenderClockOptions;
+  gitReader?: typeof readGitStatus;
   /** Override settings file path (tests). Defaults to `~/.pi/agent/pi-grok-theme.json`. */
   settingsPath?: string;
 }
@@ -77,17 +79,24 @@ export default function registerGrokBuildExtension(
   let showHeader = false;
   const settingsPath = options.settingsPath;
 
-  let glyphDensity: GlyphDensity = "unicode";
+  let glyphDensity: GlyphDensity = "auto";
+  let headerStyle: HeaderStyle = "compact";
+  let motion: MotionMode = "normal";
+  let indicatorSupported = false;
+  let agentActive = false;
+  let lastTimerLabel = "";
+  let lastShellSignature = "";
+  let git: GitStatusProvider | undefined;
   let separatorStyle: SeparatorStyle = "dot";
 
-  const persistPrefs = (): void => {
+  const persistPrefs = () => {
     const payload: GrokThemeSettings = {
       footerPreset: config.preset,
       showHeader,
       glyphDensity,
-      separatorStyle,
+      separatorStyle, headerStyle, motion,
     };
-    saveSettings(payload, settingsPath);
+    return saveSettings(payload, settingsPath);
   };
 
   const applyPersistedPrefs = (): void => {
@@ -96,19 +105,43 @@ export default function registerGrokBuildExtension(
     showHeader = loaded.showHeader;
     glyphDensity = loaded.glyphDensity;
     separatorStyle = loaded.separatorStyle;
-    config.glyphDensity = glyphDensity;
-    config.separator = separatorForStyle(separatorStyle);
+    headerStyle = loaded.headerStyle;
+    motion = loaded.motion;
+    syncConfig();
   };
 
-  // Only this module owns timers (spec §5.3): one coalescing render clock
-  // drives elapsed-time refreshes while a turn is active.
+  function syncConfig(): void {
+    config.glyphDensity = glyphDensity;
+    config.motion = motion;
+    config.separator = separatorForStyle(separatorStyle, glyphDensity);
+  }
+  function requestImmediate(): void {
+    lastTimerLabel = statusController.getBadge(Date.now(), motion).label;
+    footerHandle?.requestRender();
+  }
+  function refreshGit(force = false): void {
+    if (!uiCtx?.hasUI || !git) return;
+    git.setContext(uiCtx.cwd, config.preset !== "minimal" && config.showGit);
+    config.gitSnapshot = git.getSnapshot();
+    if (config.preset === "minimal" && !showHeader && typeof uiCtx.ui?.setTitle !== "function") return;
+    void git.refresh(force);
+  }
   const renderClock = new RenderClock({
-    requestRender: () => footerHandle?.requestRender(),
     ...options.renderClock,
+    requestRender: () => {
+      refreshGit();
+      const label = statusController.getBadge(Date.now(), motion).label;
+      if (motion !== "quiet" || label !== lastTimerLabel) {
+        lastTimerLabel = label;
+        footerHandle?.requestRender();
+        options.renderClock?.requestRender?.();
+      }
+    },
   });
 
   // Track original setWorkingMessage to intercept gracefully
   let originalSetWorkingMessage: ((message?: string) => void) | undefined;
+  let workingMessageOwner: ExtensionContext["ui"] | undefined;
   let unwrapSetWorkingMessage: ((message?: string) => void) | undefined;
 
   // Most recently seen UI context — command argument completions receive no
@@ -129,6 +162,33 @@ export default function registerGrokBuildExtension(
   /**
    * Hook into UI context when session starts or changes
    */
+  function updateHeader(ctx: ExtensionContext): void {
+    headerHandle?.dispose();
+    headerHandle = showHeader ? installHeader(ctx, { style: headerStyle, glyphDensity, showBranch: true, showModel: true, version: VERSION, getGitSnapshot: () => config.gitSnapshot ?? { state: "loading" } }) : undefined;
+  }
+  function updateShell(ctx: ExtensionContext): void {
+    const glyphs = resolveGlyphs(glyphDensity);
+    const branch = config.gitSnapshot?.branch;
+    const signature = `${glyphs.brandMark}|${glyphs.disclosureArrow}|${ctx.cwd}|${branch ?? ""}`;
+    if (ctx.hasUI && signature !== lastShellSignature) {
+      ctx.ui.setHiddenThinkingLabel?.(`${glyphs.disclosureArrow} thought`);
+      ctx.ui.setTitle?.(`${glyphs.brandMark} grok | ${path.basename(ctx.cwd)}${branch ? ` | ${branch}` : ""}`);
+      lastShellSignature = signature;
+    }
+  }
+  function updatePresentation(ctx: ExtensionContext): void {
+    syncConfig();
+    indicatorSupported = applyWorkingIndicator(ctx, glyphDensity, motion);
+    updateHeader(ctx);
+    updateShell(ctx);
+    requestImmediate();
+  }
+  function restoreMessage(): void {
+    if (workingMessageOwner && unwrapSetWorkingMessage) workingMessageOwner.setWorkingMessage = unwrapSetWorkingMessage;
+    originalSetWorkingMessage = undefined;
+    unwrapSetWorkingMessage = undefined;
+    workingMessageOwner = undefined;
+  }
   function setupUi(ctx: ExtensionContext): void {
     if (!ctx.hasUI) return;
 
@@ -137,21 +197,16 @@ export default function registerGrokBuildExtension(
       footerHandle?.dispose();
       footerHandle = installFooter(ctx, statusController, config);
 
-      // Header is opt-in to match Grok Build's clean fullscreen canvas
-      headerHandle?.dispose();
-      if (showHeader) {
-        headerHandle = installHeader(ctx);
-      } else {
-        headerHandle = undefined;
-      }
+      updateHeader(ctx);
 
       // Intercept setWorkingMessage for concise Grok status tokens
       if (typeof ctx.ui?.setWorkingMessage === "function" && !originalSetWorkingMessage) {
+        workingMessageOwner = ctx.ui;
         unwrapSetWorkingMessage = ctx.ui.setWorkingMessage;
         originalSetWorkingMessage = ctx.ui.setWorkingMessage.bind(ctx.ui);
         ctx.ui.setWorkingMessage = (message?: string) => {
           try {
-            const filtered = statusController.filterWorkingMessage(message);
+            const filtered = statusController.filterWorkingMessage(message, Date.now(), motion);
             originalSetWorkingMessage?.(filtered);
           } catch {
             originalSetWorkingMessage?.(message);
@@ -166,7 +221,11 @@ export default function registerGrokBuildExtension(
   // Lifecycle Events
   pi.on("session_start", (_event, ctx) => {
     try {
+      restoreMessage();
+      lastShellSignature = "";
+      git?.dispose();
       uiCtx = ctx;
+      agentActive = false;
       statusController.endTurn();
       renderClock.stop(); // never inherit a stale clock from a previous session
       applyPersistedPrefs();
@@ -174,23 +233,17 @@ export default function registerGrokBuildExtension(
       // theme its darker amber, unknown themes keep the terminal default.
       applyCursorPolicy(activeThemeName(ctx));
       // Grok Braille working indicator (feature-detected; no-op on older Pi).
-      applyWorkingIndicator(ctx);
+      indicatorSupported = applyWorkingIndicator(ctx, glyphDensity, motion);
+      git = new GitStatusProvider({ reader: options.gitReader, onChange: () => {
+        config.gitSnapshot = git?.getSnapshot();
+        updateShell(ctx);
+        requestImmediate();
+      } });
+      config.onBranchChange = () => { git?.invalidate(); refreshGit(true); };
       setupUi(ctx);
+      refreshGit();
 
-      // Shell chrome: grok-style window title + compact hidden-thinking label.
-      // Applied once here; core's updateTerminalTitle() may overwrite the title on
-      // session rename/switch (known limitation, see README). Never reset on
-      // shutdown — core owns the title after us.
-      if (ctx.hasUI && ctx.ui) {
-        const glyphs = getGlyphs();
-        if (typeof ctx.ui.setTitle === "function") {
-          const branch = getGitBranch(ctx.cwd) ?? "no-git";
-          ctx.ui.setTitle(`${glyphs.brandMark} grok · ${path.basename(ctx.cwd)} · ${branch}`);
-        }
-        if (typeof ctx.ui.setHiddenThinkingLabel === "function") {
-          ctx.ui.setHiddenThinkingLabel(`${glyphs.disclosureArrow} thought`);
-        }
-      }
+      updateShell(ctx);
     } catch (err) {
       console.error("[pi-grok-theme] session_start error:", err);
     }
@@ -198,18 +251,14 @@ export default function registerGrokBuildExtension(
 
   pi.on("session_shutdown", (_event, ctx) => {
     try {
+      agentActive = false;
       statusController.endTurn();
       renderClock.stop(); // no timers may survive shutdown
-      if (ctx?.ui && unwrapSetWorkingMessage) {
-        try {
-          originalSetWorkingMessage?.(undefined);
-          ctx.ui.setWorkingMessage = unwrapSetWorkingMessage;
-        } catch {
-          // ignore
-        }
-        originalSetWorkingMessage = undefined;
-        unwrapSetWorkingMessage = undefined;
-      }
+      git?.dispose();
+      git = undefined;
+      originalSetWorkingMessage?.(undefined);
+      restoreMessage();
+      uiCtx = undefined;
       resetCursorColor(); // OSC 112: restore terminal default cursor color
       restoreWorkingIndicator(ctx); // restore Pi's default working indicator
       footerHandle?.dispose();
@@ -221,15 +270,34 @@ export default function registerGrokBuildExtension(
     }
   });
 
+  // Host agent boundaries include tools and the final abort/completion event.
+  pi.on("agent_start", (_event, ctx) => {
+    agentActive = true;
+    uiCtx = ctx;
+    statusController.startTurn();
+    renderClock.start();
+    refreshGit();
+    requestImmediate();
+  });
+  pi.on("agent_end", () => {
+    agentActive = false;
+    statusController.endTurn();
+    renderClock.stop();
+    originalSetWorkingMessage?.(undefined);
+    refreshGit();
+    requestImmediate();
+  });
+
   // Turn & Message Lifecycle
   pi.on("message_start", (event, ctx) => {
     try {
       if (event.message.role === "assistant") {
-        statusController.startTurn();
+        if (!statusController.isWorking()) statusController.startTurn();
         statusController.startThinking();
         // Turn boundary: start the clock exactly once, render immediately.
         renderClock.start();
-        footerHandle?.requestRender();
+        refreshGit();
+        requestImmediate();
       }
     } catch (err) {
       console.error("[pi-grok-theme] message_start error:", err);
@@ -239,9 +307,14 @@ export default function registerGrokBuildExtension(
   pi.on("message_update", (event, _ctx) => {
     try {
       if (event.message.role === "assistant") {
-        statusController.startStreaming();
-        // Per-token updates mark chrome dirty; the clock coalesces renders.
-        renderClock.markDirty();
+        const type = event.assistantMessageEvent?.type;
+        const previousState = statusController.getState();
+        if (type?.startsWith("thinking_")) statusController.startThinking();
+        else if (!type || type.startsWith("text_") || type.startsWith("toolcall_")) statusController.startStreaming();
+        else return;
+        const changed = statusController.getState() !== previousState;
+        if (changed) requestImmediate();
+        else renderClock.markDirty();
       }
     } catch (err) {
       console.error("[pi-grok-theme] message_update error:", err);
@@ -251,6 +324,7 @@ export default function registerGrokBuildExtension(
   pi.on("message_end", (event, ctx) => {
     try {
       if (event.message.role === "assistant") {
+        if (agentActive) { statusController.endTool(); requestImmediate(); return; }
         statusController.endTurn();
         renderClock.stop();
         originalSetWorkingMessage?.(undefined);
@@ -275,7 +349,8 @@ export default function registerGrokBuildExtension(
   pi.on("tool_execution_start", (event, _ctx) => {
     try {
       statusController.startTool(event.toolName);
-      renderClock.markDirty();
+      renderClock.start();
+      requestImmediate();
     } catch (err) {
       console.error("[pi-grok-theme] tool_execution_start error:", err);
     }
@@ -284,7 +359,8 @@ export default function registerGrokBuildExtension(
   pi.on("tool_execution_end", (event, _ctx) => {
     try {
       statusController.endTool(event.toolName);
-      renderClock.markDirty();
+      refreshGit();
+      requestImmediate();
     } catch (err) {
       console.error("[pi-grok-theme] tool_execution_end error:", err);
     }
@@ -292,7 +368,7 @@ export default function registerGrokBuildExtension(
 
   // Register interactive slash command
   pi.registerCommand("grok", {
-    description: "Inspect or configure pi-grok-theme theme and UI extension (/grok [info|status|theme|footer|toggle|header])",
+    description: "Inspect or configure pi-grok-theme theme and UI extension (/grok [info|status|theme|footer|toggle|header|motion])",
     // Completion offers theme aliases and installed theme names. It only
     // suggests — switching themes as a preview side effect is unsupported and
     // never happens here (spec §4.6).
@@ -300,6 +376,11 @@ export default function registerGrokBuildExtension(
       const raw = (argumentPrefix ?? "").trim().toLowerCase();
       const parts = raw.split(/\s+/).filter(Boolean);
 
+      if (parts[0] === "header" || parts[0] === "motion") {
+        const values = parts[0] === "header" ? ["compact", "boxed", "on", "off"] : ["normal", "quiet"];
+        const items = values.filter((v) => v.startsWith(parts[1] ?? "")).map((v) => ({ value: `${parts[0]} ${v}`, label: v }));
+        return items.length ? items : null;
+      }
       // /grok footer <preset|glyphs|sep> …
       if (parts[0] === "footer") {
         const sub = parts.slice(1);
@@ -319,7 +400,7 @@ export default function registerGrokBuildExtension(
         }
         const footerItems = [
           ...FOOTER_PRESETS.map((p) => ({ value: `footer ${p}`, label: p, description: "footer preset" })),
-          { value: "footer glyphs", label: "glyphs", description: "glyph density unicode|nerd|ascii" },
+          { value: "footer glyphs", label: "glyphs", description: "glyph density auto|unicode|nerd|ascii" },
           { value: "footer sep", label: "sep", description: "separator style" },
         ];
         const rest = raw.slice("footer".length).trim();
@@ -338,6 +419,7 @@ export default function registerGrokBuildExtension(
         { value: "minimal", label: "minimal", description: "grok-build (dark, monochrome)" },
         { value: "day", label: "day", description: "grok-build-day (light)" },
         { value: "footer", label: "footer", description: "footer preset / glyphs / sep" },
+        { value: "motion", label: "motion", description: "normal or quiet motion" },
         { value: "header", label: "header", description: "toggle the workspace header" },
         { value: "info", label: "info", description: "extension status" },
       ];
@@ -354,18 +436,23 @@ export default function registerGrokBuildExtension(
       return filtered.length > 0 ? filtered : null;
     },
     handler: async (args, ctx) => {
-      const sub = (args || "").trim().toLowerCase();
+      const input = (args || "").trim();
+      const sub = input.toLowerCase();
       // Notifications ride the active theme when Pi exposes one.
       const chrome = createChromeTheme(activeTheme(ctx));
+      const glyphs = resolveGlyphs(glyphDensity);
       const notify = (msg: string, type?: "info" | "warning" | "error") => {
         if (ctx.hasUI && typeof ctx.ui?.notify === "function") {
           ctx.ui.notify(msg, type);
         }
       };
 
+      const saved = (message: string): void => {
+        const result = persistPrefs();
+        notify(result.success ? message : `${message}. Applied for this session only; preferences could not be saved: ${result.error}`, result.success ? "info" : "warning");
+      };
       if (sub === "status" || sub === "info" || !sub) {
-        const badge = statusController.getBadge();
-        const glyphs = getGlyphs();
+        const badge = statusController.getBadge(Date.now(), motion);
         const iconGlyph = badge.icon === "spinnerFrames" ? undefined : glyphs[badge.icon];
         const statusIcon = (typeof iconGlyph === "string" ? iconGlyph : undefined)
           ?? (badge.state === "idle" ? glyphs.idleDot : glyphs.workingDot);
@@ -376,12 +463,14 @@ export default function registerGrokBuildExtension(
           ? `${cursorPolicy.color} (OSC 12)`
           : "terminal default (OSC 112 restore)";
         const msg = [
-          chrome.bold(chrome.fg("accent", `π Grok Theme v${VERSION}`)),
+          chrome.bold(chrome.fg("accent", `${glyphs.brandMark} Grok Theme v${VERSION}`)),
           `${chrome.fg("muted", "Package:")} pi-grok-theme`,
           `${chrome.fg("muted", "Theme:")} ${themeName}`,
           `${chrome.fg("muted", "Cursor:")} ${cursorLine}`,
           `${chrome.fg("muted", "Footer:")} ${config.preset}`,
-          `${chrome.fg("muted", "Header:")} ${showHeader ? "enabled" : "disabled"}`,
+          `${chrome.fg("muted", "Header:")} ${showHeader ? `enabled (${headerStyle})` : `disabled (${headerStyle})`}`,
+          `${chrome.fg("muted", "Glyphs:")} ${glyphDensity} (effective ${resolveGlyphDensity(glyphDensity)})`,
+          `${chrome.fg("muted", "Motion:")} ${motion}${motion === "quiet" && !indicatorSupported ? " (host animation cannot be customized)" : ""}`,
           `${chrome.fg("muted", "Status:")} ${statusLine}`,
           `${chrome.fg("muted", "Workspace:")} ${ctx.cwd}`,
           `${chrome.fg("muted", "Model:")} ${ctx.model?.name || ctx.model?.id || "default"}`,
@@ -392,7 +481,7 @@ export default function registerGrokBuildExtension(
       }
 
       if (sub === "theme" || sub.startsWith("theme ") || sub === "themes") {
-        const themeArg = sub.replace(/^themes?/, "").trim();
+        const themeArg = input.replace(/^themes?/i, "").trim();
         const aliasToTheme: Record<string, string> = {
           coding: "grok-build-coding",
           "grok-build-coding": "grok-build-coding",
@@ -412,24 +501,24 @@ export default function registerGrokBuildExtension(
             const installed = installedThemeNames();
             const names = installed ?? ["grok-build-coding", "grok-build", "grok-build-day"];
             const lines = [
-              chrome.bold(chrome.fg("accent", "π Grok Theme Themes")),
+              chrome.bold(chrome.fg("accent", `${glyphs.brandMark} Grok Theme Themes`)),
               ...names.map((name) => {
-                const marker = name === activeName ? `${chrome.fg("success", "●")} ` : "  ";
+                const marker = name === activeName ? `${chrome.fg("success", glyphs.workingDot)} ` : "  ";
                 const suffix =
                   name === activeName ? ` ${chrome.fg("muted", "(active)")}` : "";
                 return `${marker}${chrome.fg("text", name)}${suffix}`;
               }),
               ``,
-              `${chrome.fg("dim", "Switch with /grok theme <name|alias> · aliases: coding, minimal, day")}`,
+              `${chrome.fg("dim", "Switch with /grok theme <name|alias> | aliases: coding, minimal, day")}`,
             ];
             notify(lines.join("\n"), "info");
           } else {
             // Older Pi without theme APIs: keep the v0.3 guidance.
             const msg = [
-              chrome.bold(chrome.fg("accent", `π Grok Theme Themes (v${VERSION})`)),
-              `  • ${chrome.fg("accent", "grok-build-coding")} ${chrome.fg("dim", "(Dark, TokyoNight syntax, Recommended)")}`,
-              `  • ${chrome.fg("accent", "grok-build")} ${chrome.fg("dim", "(Dark, Minimal monochrome)")}`,
-              `  • ${chrome.fg("warning", "grok-build-day")} ${chrome.fg("dim", "(Light, GrokDay clean canvas)")}`,
+              chrome.bold(chrome.fg("accent", `${glyphs.brandMark} Grok Theme Themes (v${VERSION})`)),
+              `  ${glyphs.disclosureArrow} ${chrome.fg("accent", "grok-build-coding")} ${chrome.fg("dim", "(Dark, TokyoNight syntax, Recommended)")}`,
+              `  ${glyphs.disclosureArrow} ${chrome.fg("accent", "grok-build")} ${chrome.fg("dim", "(Dark, Minimal monochrome)")}`,
+              `  ${glyphs.disclosureArrow} ${chrome.fg("warning", "grok-build-day")} ${chrome.fg("dim", "(Light, GrokDay clean canvas)")}`,
               ``,
               `${chrome.fg("muted", "Switch theme via:")}`,
               `  1. Run ${chrome.bold("/settings")} -> Theme`,
@@ -441,7 +530,7 @@ export default function registerGrokBuildExtension(
           return;
         }
 
-        const targetTheme = aliasToTheme[themeArg] ?? themeArg;
+        const targetTheme = aliasToTheme[themeArg.toLowerCase()] ?? themeArg;
 
         // Older Pi without switching APIs: existing manual activation guidance.
         if (!switchingSupported) {
@@ -469,7 +558,7 @@ export default function registerGrokBuildExtension(
         if (result?.success) {
           // Synchronize every theme-dependent chrome piece immediately.
           applyCursorPolicy(targetTheme);
-          applyWorkingIndicator(ctx);
+          indicatorSupported = applyWorkingIndicator(ctx, glyphDensity, motion);
           footerHandle?.requestRender(); // footer/header re-render from the live theme
           notify(`Theme switched to ${chrome.fg("accent", targetTheme)}`, "info");
         } else {
@@ -488,17 +577,17 @@ export default function registerGrokBuildExtension(
         if (parts.length === 0) {
           const presetDescriptions: Record<FooterPreset, string> = {
             default: "responsive hierarchy with all eligible segments",
-            minimal: "model · context · status",
-            full: "cwd · branch · model · context · thinking · turn time · extension statuses · status",
+            minimal: "model / context / status",
+            full: "model / branch / context / extension statuses / thinking / cwd / turn time / status",
           };
           const msg = [
             chrome.bold(chrome.fg("accent", "Grok footer")),
             `${chrome.fg("muted", "Current:")} preset=${config.preset} ${chrome.fg("dim", `(${presetDescriptions[config.preset]})`)}`,
-            `${chrome.fg("muted", "Glyphs:")} ${glyphDensity}`,
-            `${chrome.fg("muted", "Separator:")} ${separatorStyle}`,
+            `${chrome.fg("muted", "Glyphs:")} ${glyphDensity} (effective ${resolveGlyphDensity(glyphDensity)})`,
+            `${chrome.fg("muted", "Separator:")} ${separatorStyle} (effective ${config.separator.trim()})`,
             `${chrome.fg("muted", "Presets:")} ${FOOTER_PRESETS.join(", ")}`,
             `${chrome.fg("dim", "Usage: /grok footer <minimal|default|full>")}`,
-            `${chrome.fg("dim", "       /grok footer glyphs <unicode|nerd|ascii>")}`,
+            `${chrome.fg("dim", "       /grok footer glyphs <auto|unicode|nerd|ascii>")}`,
             `${chrome.fg("dim", "       /grok footer sep <dot|powerline-thin|slash|ascii>")}`,
           ].join("\n");
           notify(msg, "info");
@@ -516,9 +605,8 @@ export default function registerGrokBuildExtension(
           }
           glyphDensity = densityArg;
           config.glyphDensity = glyphDensity;
-          persistPrefs();
-          footerHandle?.requestRender();
-          notify(`pi-grok-theme footer glyphs: ${densityArg}`, "info");
+          updatePresentation(ctx);
+          saved(`pi-grok-theme footer glyphs: ${densityArg} (effective ${resolveGlyphDensity(glyphDensity)})`);
           return;
         }
 
@@ -532,10 +620,9 @@ export default function registerGrokBuildExtension(
             return;
           }
           separatorStyle = styleArg;
-          config.separator = separatorForStyle(styleArg);
-          persistPrefs();
-          footerHandle?.requestRender();
-          notify(`pi-grok-theme footer sep: ${styleArg}`, "info");
+          syncConfig();
+          requestImmediate();
+          saved(`pi-grok-theme footer sep: ${styleArg} (effective ${config.separator.trim()})`);
           return;
         }
 
@@ -548,22 +635,32 @@ export default function registerGrokBuildExtension(
         }
 
         config.preset = presetArg as FooterPreset;
-        persistPrefs();
-        footerHandle?.requestRender();
-        notify(`pi-grok-theme footer preset: ${presetArg}`, "info");
+        refreshGit();
+        requestImmediate();
+        saved(`pi-grok-theme footer preset: ${presetArg}`);
         return;
       }
 
-      if (sub === "header") {
-        showHeader = !showHeader;
-        persistPrefs();
-        headerHandle?.dispose();
-        if (showHeader) {
-          headerHandle = installHeader(ctx);
-        } else {
-          headerHandle = undefined;
+      if (sub === "header" || sub.startsWith("header ")) {
+        const value = sub.slice(6).trim();
+        if (value && !["compact", "boxed", "on", "off"].includes(value)) {
+          notify("Usage: /grok header [compact|boxed|on|off]", "warning"); return;
         }
-        notify(`pi-grok-theme header: ${showHeader ? "enabled" : "disabled"}`, "info");
+        if (value === "compact" || value === "boxed") { headerStyle = value; showHeader = true; }
+        else showHeader = value === "on" ? true : value === "off" ? false : !showHeader;
+        updateHeader(ctx);
+        refreshGit();
+        requestImmediate();
+        saved(`pi-grok-theme header: ${showHeader ? "enabled" : "disabled"} (${headerStyle})`);
+        return;
+      }
+      if (sub === "motion" || sub.startsWith("motion ")) {
+        const value = sub.slice(6).trim();
+        if (!value) { notify(`Motion: ${motion}${!indicatorSupported ? " (host animation cannot be customized)" : ""}`, "info"); return; }
+        if (value !== "normal" && value !== "quiet") { notify("Usage: /grok motion normal|quiet", "warning"); return; }
+        motion = value;
+        updatePresentation(ctx);
+        saved(`pi-grok-theme motion: ${motion}${motion === "quiet" && !indicatorSupported ? " (host animation cannot be customized)" : ""}`);
         return;
       }
 
@@ -577,7 +674,7 @@ export default function registerGrokBuildExtension(
         return;
       }
 
-      notify(`Unknown subcommand "${sub}". Usage: /grok [info|status|theme|footer|toggle|header]`, "warning");
+      notify(`Unknown subcommand "${sub}". Usage: /grok [info|status|theme|footer|toggle|header|motion]`, "warning");
     },
   });
 }

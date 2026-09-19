@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased
+
+Reliability and visual-polish work for Pi chrome. No version bump is assigned yet.
+
+### Git and layout
+
+- Moved Git discovery and status reads out of the render path. A single-flight provider caches successful snapshots for about three seconds, aborts bounded reads, ignores stale workspace results, and refreshes the UI when data arrives.
+- Refreshing retains the last good branch and counts. Failed reads show `git?`, retain a known branch, and hide unreliable counts; non-repositories remain quiet.
+- At 80 columns and wider, Footer metadata and activity use two zones with a stable 24-column right activity area. Narrow layouts preserve a recognizable model and activity state before optional fields.
+- Normal branches and untracked counts use neutral tones; staged and dirty counts keep distinct semantic and textual markers.
+
+### Controls and persistence
+
+- Footer presets are `default`, `minimal`, and `full`; legacy `auto` migrates to `default` and remains an accepted alias.
+- Glyph preference now defaults to `auto`, with explicit `unicode`, `nerd`, and `ascii` choices. `PI_GROK_LEGACY_GLYPHS=1` forces ASCII; `=0` resolves auto to modern Unicode. Separator fallback follows the effective glyph mode without overwriting the selected separator.
+- Header remains disabled by default. Its new `compact` style is one line; `boxed` preserves the previous banner. `/grok header [compact|boxed|on|off]` includes the existing bare toggle, and an old enabled Header migrates to boxed.
+- Added `/grok motion normal|quiet`, defaulting to `normal`. Where the host supports custom working frames, quiet uses a static frame; plugin timers use integer seconds and avoid redundant redraws. Unsupported host animation control is reported honestly.
+- Preferences are written atomically beneath the Pi agent directory, including `PI_CODING_AGENT_DIR` overrides. A failed save leaves the previous file intact, keeps the session change, and emits one failure notification.
+
+### Visual system and previews
+
+- Consolidated plugin-owned symbols into coherent Unicode, Nerd Font, and ASCII sets. Default icons are monochrome; day-theme readable secondary content uses a clearer accessible gray hierarchy.
+- The Pi extension owns Footer, Header, commands, and motion. omp receives generated palette files only; this release does not port Pi chrome behavior to omp.
+- Expanded the existing three deterministic Header/Footer SVGs with compact/boxed, wide/narrow, Git, context, and activity scenarios. Added three real-host `*-content.svg` showcases for Markdown, syntax, tools, errors, Diff, and filtered selection, rendered in isolated theme sessions.
+- Automated rendering and contrast checks cover the documented states. Real-terminal and tmux visual QA remain separate acceptance work and are not claimed here.
+
 ## 0.5.0 — omp-style polish (2026-09-09)
 
 Vars-first themes, omp-flavored footer chrome, OSC 8 path + git counts, and dual Pi/omp theme export.
@@ -35,8 +61,7 @@ Focused cleanup on top of Adaptive Chrome. No new beauty/UI features.
 - **Glyph-routed shell chrome** — window title and hidden-thinking label use
   `brandMark` / `disclosureArrow` so legacy glyph mode stays consistent.
 - **Persisted footer/header prefs** — `/grok footer` preset and `/grok header`
-  toggle survive across sessions in `~/.pi/agent/pi-grok-theme.json` (defaults
-  remain `auto` / header off).
+  toggle survive across sessions in `~/.pi/agent/pi-grok-theme.json`.
 - **Honest `/grok info`** — reports the active theme and
   `resolveCursorPolicy` result instead of hard-coded Amber Gold / GrokNight.
 - **Help copy** — unknown-subcommand usage lists `footer`; user-visible
@@ -71,13 +96,14 @@ Pi `>= 0.80.0` with progressive enhancement on newer UI APIs.
 - **Context pressure metric** — Grok token notation `⇣48k/200k (24%)`
   (compact `24%`) with threshold tones at 65/80/90% (accent/warning/error),
   host-percent precedence, 0–100% clamping, and no fabricated segment when
-  usage data is missing. `⇣` falls back to `↓` in legacy glyph mode.
+  usage data is missing. The context marker follows the active glyph set.
 - **Coalesced render clock + dual timing** — at most one render per 250 ms
   while a turn is active (`render-clock.ts`), token bursts coalesced,
   `unref()`'d timer, phase time in the status label (resets per
   thinking/streaming/tool transition) and whole-turn time in the `full`
   preset. Timer ownership lives exclusively in `index.ts`.
-- **Footer presets** — `/grok footer auto|minimal|full` with
+- **Footer presets** — the original responsive/minimal/full controls, since
+  superseded by the `default|minimal|full` names documented in Unreleased, with
   metadata-driven segments (`FooterSegment` priority/required/wide/compact),
   guaranteed single-line fitting at every width, and third-party extension
   statuses that can never push core fields off-screen.
