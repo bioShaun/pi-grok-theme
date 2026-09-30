@@ -4,6 +4,9 @@
 
 Reliability and visual-polish work for Pi chrome. No version bump is assigned yet.
 
+- Cooperate with footer-owning extensions such as pi-open-tui: yield rendering and Git counts, retain theme chrome, and prevent `/grok header` from replacing the other extension's header. Theme chrome now synchronizes when Pi's active theme changes.
+- Hardened Git spawn-error handling, limited OSC writes to TUI mode, passed working messages through, and sanitized status text.
+
 ### Git and layout
 
 - Moved Git discovery and status reads out of the render path. A single-flight provider caches successful snapshots for about three seconds, aborts bounded reads, ignores stale workspace results, and refreshes the UI when data arrives.

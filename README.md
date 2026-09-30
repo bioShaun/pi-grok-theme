@@ -179,6 +179,10 @@ They verify static rendering; animation and physical font rendering require term
 
 ## 🖥️ UI Extension & Footer
 
+### Using with pi-open-tui
+
+When another extension owns the footer/header, Grok yields automatically. Theme colors, the amber cursor, Braille working indicator, and terminal title remain active, while footer rendering and Git counts stop. `/grok header` is disabled while the other extension owns the footer.
+
 The Phase 2 presentation extension provides a single-line, responsive statusline inspired by Grok Build.
 
 ### Responsive Footer Layouts

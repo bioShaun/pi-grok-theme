@@ -175,6 +175,10 @@ chrome 预览以更丰富的场景展示 compact/boxed Header、宽窄 Footer、
 
 ## 🖥️ UI 扩展与状态栏
 
+### 与 pi-open-tui 一起使用
+
+当其他扩展接管 Footer/Header 时，Grok 会自动让出界面所有权。主题颜色、琥珀色光标、Braille 工作指示器和终端标题仍会保留，同时停止 Footer 渲染和 Git 计数。此时 `/grok header` 会被禁用。
+
 Phase 2 提供的 UI 扩展实现完全还原 Grok Build 的紧凑单行状态栏。
 
 ### 响应式布局自适应

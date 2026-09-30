@@ -509,8 +509,10 @@ export function installFooter(
   ctx: ExtensionContext,
   statusController: WorkingStateController,
   config: FooterConfig = DEFAULT_FOOTER_CONFIG,
+  options: { onYield?: () => void } = {},
 ): { dispose: () => void; requestRender: () => void } {
   let activeTui: { requestRender: () => void } | undefined;
+  let selfDisposing = false;
 
   if (!ctx.hasUI || typeof ctx.ui?.setFooter !== "function") {
     return {
@@ -540,6 +542,7 @@ export function installFooter(
       dispose: () => {
         unsubscribeBranch?.();
         activeTui = undefined;
+        if (!selfDisposing) options.onYield?.();
       },
       invalidate: () => {},
       render: (width: number) => {
@@ -551,6 +554,7 @@ export function installFooter(
 
   return {
     dispose: () => {
+      selfDisposing = true;
       try {
         ctx.ui?.setFooter(undefined as unknown as never);
       } catch {

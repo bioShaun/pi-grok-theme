@@ -89,6 +89,8 @@ export default function registerGrokBuildExtension(
   let indicatorSupported = false;
   let cursorTouched = false;
   let agentActive = false;
+  let footerYielded = false;
+  let lastChromeTheme: string | undefined | null = null;
   let lastTimerLabel = "";
   let lastShellSignature = "";
   let git: GitStatusProvider | undefined;
@@ -126,10 +128,20 @@ export default function registerGrokBuildExtension(
   }
   function refreshGit(force = false): void {
     if (!uiCtx?.hasUI || !git) return;
-    git.setContext(uiCtx.cwd, config.preset !== "minimal" && config.showGit);
+    git.setContext(uiCtx.cwd, !footerYielded && config.preset !== "minimal" && config.showGit);
     config.gitSnapshot = git.getSnapshot();
     if (config.preset === "minimal" && !showHeader && typeof uiCtx.ui?.setTitle !== "function") return;
     void git.refresh(force);
+  }
+  function syncThemeChrome(ctx: ExtensionContext, force = false): void {
+    const name = activeThemeName(ctx);
+    if (!force && name === lastChromeTheme) return;
+    lastChromeTheme = name;
+    if (isTerminalUi(ctx)) {
+      applyCursorPolicy(name);
+      cursorTouched = true;
+    }
+    indicatorSupported = applyWorkingIndicator(ctx, glyphDensity, motion);
   }
   const renderClock = new RenderClock({
     ...options.renderClock,
@@ -200,7 +212,12 @@ export default function registerGrokBuildExtension(
     try {
       // Install Footer
       footerHandle?.dispose();
-      footerHandle = installFooter(ctx, statusController, config);
+      footerHandle = installFooter(ctx, statusController, config, { onYield: () => {
+        footerYielded = true;
+        footerHandle = null;
+        renderClock.stop();
+        refreshGit();
+      } });
 
       updateHeader(ctx);
 
@@ -227,6 +244,7 @@ export default function registerGrokBuildExtension(
   pi.on("session_start", (_event, ctx) => {
     try {
       restoreMessage();
+      footerYielded = false;
       lastShellSignature = "";
       git?.dispose();
       uiCtx = ctx;
@@ -236,12 +254,7 @@ export default function registerGrokBuildExtension(
       applyPersistedPrefs();
       // Named-theme cursor policy: bundled darks get Grok amber, the day
       // theme its darker amber, unknown themes keep the terminal default.
-      if (isTerminalUi(ctx)) {
-        applyCursorPolicy(activeThemeName(ctx));
-        cursorTouched = true;
-      }
-      // Grok Braille working indicator (feature-detected; no-op on older Pi).
-      indicatorSupported = applyWorkingIndicator(ctx, glyphDensity, motion);
+      syncThemeChrome(ctx, true);
       git = new GitStatusProvider({ reader: options.gitReader, onChange: () => {
         config.gitSnapshot = git?.getSnapshot();
         updateShell(ctx);
@@ -276,6 +289,7 @@ export default function registerGrokBuildExtension(
       footerHandle = null;
       headerHandle?.dispose();
       headerHandle = undefined;
+      lastChromeTheme = null;
     } catch (err) {
       console.error("[pi-grok-theme] session_shutdown error:", err);
     }
@@ -285,12 +299,14 @@ export default function registerGrokBuildExtension(
   pi.on("agent_start", (_event, ctx) => {
     agentActive = true;
     uiCtx = ctx;
+    syncThemeChrome(ctx);
     statusController.startTurn();
-    renderClock.start();
+    if (!footerYielded) renderClock.start();
     refreshGit();
     requestImmediate();
   });
-  pi.on("agent_end", () => {
+  pi.on("agent_end", (_event, ctx) => {
+    syncThemeChrome(ctx);
     agentActive = false;
     statusController.endTurn();
     renderClock.stop();
@@ -306,7 +322,7 @@ export default function registerGrokBuildExtension(
         if (!statusController.isWorking()) statusController.startTurn();
         statusController.startThinking();
         // Turn boundary: start the clock exactly once, render immediately.
-        renderClock.start();
+        if (!footerYielded) renderClock.start();
         refreshGit();
         requestImmediate();
       }
@@ -360,7 +376,7 @@ export default function registerGrokBuildExtension(
   pi.on("tool_execution_start", (event, _ctx) => {
     try {
       statusController.startTool(event.toolName);
-      renderClock.start();
+      if (!footerYielded) renderClock.start();
       requestImmediate();
     } catch (err) {
       console.error("[pi-grok-theme] tool_execution_start error:", err);
@@ -478,7 +494,7 @@ export default function registerGrokBuildExtension(
           `${chrome.fg("muted", "Package:")} pi-grok-theme`,
           `${chrome.fg("muted", "Theme:")} ${themeName}`,
           `${chrome.fg("muted", "Cursor:")} ${cursorLine}`,
-          `${chrome.fg("muted", "Footer:")} ${config.preset}`,
+          `${chrome.fg("muted", "Footer:")} ${config.preset}${footerYielded ? " (yielded to another extension)" : ""}`,
           `${chrome.fg("muted", "Header:")} ${showHeader ? `enabled (${headerStyle})` : `disabled (${headerStyle})`}`,
           `${chrome.fg("muted", "Glyphs:")} ${glyphDensity} (effective ${resolveGlyphDensity(glyphDensity)})`,
           `${chrome.fg("muted", "Motion:")} ${motion}${motion === "quiet" && !indicatorSupported ? " (host animation cannot be customized)" : ""}`,
@@ -568,11 +584,7 @@ export default function registerGrokBuildExtension(
         const result = ctx.ui.setTheme(targetTheme);
         if (result?.success) {
           // Synchronize every theme-dependent chrome piece immediately.
-          if (isTerminalUi(ctx)) {
-            applyCursorPolicy(targetTheme);
-            cursorTouched = true;
-          }
-          indicatorSupported = applyWorkingIndicator(ctx, glyphDensity, motion);
+          syncThemeChrome(ctx, true);
           footerHandle?.requestRender(); // footer/header re-render from the live theme
           notify(`Theme switched to ${chrome.fg("accent", targetTheme)}`, "info");
         } else {
@@ -651,7 +663,7 @@ export default function registerGrokBuildExtension(
         config.preset = presetArg as FooterPreset;
         refreshGit();
         requestImmediate();
-        saved(`pi-grok-theme footer preset: ${presetArg}`);
+        saved(`pi-grok-theme footer preset: ${presetArg}${footerYielded ? " (footer currently provided by another extension)" : ""}`);
         return;
       }
 
@@ -659,6 +671,11 @@ export default function registerGrokBuildExtension(
         const value = sub.slice(6).trim();
         if (value && !["compact", "boxed", "on", "off"].includes(value)) {
           notify("Usage: /grok header [compact|boxed|on|off]", "warning"); return;
+        }
+        const enableRequested = value === "compact" || value === "boxed" || value === "on" || (!value && !showHeader);
+        if (footerYielded && enableRequested) {
+          notify("Footer/header are provided by another extension; grok header not installed.", "warning");
+          return;
         }
         if (value === "compact" || value === "boxed") { headerStyle = value; showHeader = true; }
         else showHeader = value === "on" ? true : value === "off" ? false : !showHeader;
