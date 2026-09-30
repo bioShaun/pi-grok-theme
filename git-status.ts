@@ -55,7 +55,10 @@ function runGit(cwd: string, args: string[], signal: AbortSignal): Promise<GitCo
 
     child.stdout.on("data", (chunk: Buffer) => collect(stdout, chunk));
     child.stderr.on("data", (chunk: Buffer) => collect(stderr, chunk));
-    child.once("error", (error) => { failure = error; });
+    child.on("error", (error) => {
+      failure ??= error;
+      if (!child.pid) reject(failure);
+    });
     child.once("close", (code) => {
       if (failure) {
         reject(failure);

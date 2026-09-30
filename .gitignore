@@ -3,6 +3,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .DS_Store
+.scratch/test-tmp/
 *.tsbuildinfo
 .vscode/
 .idea/

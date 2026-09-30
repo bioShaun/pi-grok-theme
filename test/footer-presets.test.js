@@ -160,6 +160,12 @@ test("extension statuses are individually droppable and cannot push core fields 
   assert.ok(extCount <= 1, `at most one ext status fits at width 30, got ${extCount}: ${out}`);
 });
 
+test("extension status newlines are sanitized to one footer line", () => {
+  const [row] = renderGrokFooter(ctx(), new WorkingStateController(), 120, new Map([["plan", "plan mode\nON"]]));
+  assert.ok(!row.includes("\n"));
+  assert.ok(row.includes("plan mode ON"));
+});
+
 test("every preset renders a single line within budget at all tested widths", () => {
   const status = new WorkingStateController();
   status.startTurn(Date.now());

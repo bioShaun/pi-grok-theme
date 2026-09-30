@@ -207,8 +207,7 @@ export class WorkingStateController {
   }
 
   /**
-   * Filter and compress verbose working messages from Pi into compact Grok tokens.
-   * Duration uses the phase clock so it matches the footer badge.
+   * Supply a compact state label only when Pi has no working message.
    */
   public filterWorkingMessage(originalMessage?: string, now = Date.now(), motion: MotionMode = "normal"): string | undefined {
     // Pass through the host's clear/restore-default contract untouched.
@@ -217,36 +216,10 @@ export class WorkingStateController {
     // Do not fabricate a working label while idle.
     if (this.state === "idle") return originalMessage;
 
-    const elapsed = this.getPhaseElapsedMs(now) ?? 0;
-    const durationStr = formatDuration(elapsed, motion);
-    const trimmed = originalMessage.trim();
-
-    if (!trimmed) {
-      if (this.state === "thinking") return `thinking (${durationStr})`;
-      if (this.state === "running_tool") return `${normalizeToolAction(this.currentTool)} (${durationStr})`;
-      if (this.state === "streaming") return `generating (${durationStr})`;
-      return `working (${durationStr})`;
-    }
-
-    // Check if message is a tool execution announcement
-    const lower = trimmed.toLowerCase();
-    if (lower.includes("bash") || lower.includes("executing")) {
-      return `running bash (${durationStr})`;
-    }
-    if (lower.includes("edit") || lower.includes("writing")) {
-      return `editing file (${durationStr})`;
-    }
-    if (lower.includes("read") || lower.includes("inspect")) {
-      return `reading file (${durationStr})`;
-    }
-    if (lower.includes("search") || lower.includes("grep")) {
-      return `searching (${durationStr})`;
-    }
-    if (lower.includes("think")) {
-      return `thinking (${durationStr})`;
-    }
-
-    // Default compact fallback
-    return `${trimmed.slice(0, 24)} (${durationStr})`;
+    if (originalMessage.trim()) return originalMessage;
+    if (this.state === "thinking") return "thinking";
+    if (this.state === "running_tool") return normalizeToolAction(this.currentTool);
+    if (this.state === "streaming") return "generating";
+    return "working";
   }
 }

@@ -101,15 +101,12 @@ test("WorkingStateController filterWorkingMessage clear semantics & idle pass-th
   assert.equal(ctrl.filterWorkingMessage("some breadcrumb"), "some breadcrumb");
   assert.equal(ctrl.filterWorkingMessage("[agent] action · tool · 0.0s"), "[agent] action · tool · 0.0s");
 
-  // 3. Active turn formats messages into Grok tokens
+  // 3. Non-empty messages pass through; empty messages use state labels.
   ctrl.startTurn();
-  assert.ok(ctrl.filterWorkingMessage("Executing bash command").includes("running bash"));
-  assert.ok(ctrl.filterWorkingMessage("Writing code to file").includes("editing file"));
-  assert.ok(ctrl.filterWorkingMessage("Reading file README.md").includes("reading file"));
-  assert.ok(ctrl.filterWorkingMessage("Searching codebase").includes("searching"));
-  assert.ok(ctrl.filterWorkingMessage("Thinking about architecture").includes("thinking"));
-  assert.ok(ctrl.filterWorkingMessage("Custom status message").includes("Custom status message"));
-  assert.ok(ctrl.filterWorkingMessage("").includes("thinking"));
+  for (const message of ["Executing bash command", "Writing code to file", "Reading file README.md", "Searching codebase", "Thinking about architecture", "Custom status message"]) {
+    assert.equal(ctrl.filterWorkingMessage(message), message);
+  }
+  assert.equal(ctrl.filterWorkingMessage(""), "thinking");
 
   ctrl.endTurn();
 });
@@ -168,7 +165,7 @@ test("setWorkingMessage interceptor & lifecycle cleanup", () => {
   receivedMessages = [];
   fakeCtx.ui.setWorkingMessage("running bash command");
   assert.equal(receivedMessages.length, 1);
-  assert.ok(receivedMessages[0].includes("running bash"));
+  assert.equal(receivedMessages[0], "running bash command");
 
   // During turn: setWorkingMessage(undefined) -> passes undefined through
   receivedMessages = [];

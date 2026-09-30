@@ -99,6 +99,32 @@ function harness({ themeName = "grok-build-coding", withSwitchingApis = true } =
   };
 }
 
+test("headless and RPC sessions do not write cursor escapes", () => {
+  const originalWrite = process.stdout.write;
+  const writes = [];
+  process.stdout.write = (chunk) => { writes.push(chunk.toString()); return true; };
+  try {
+    for (const ctx of [{ hasUI: false, mode: "tui" }, { hasUI: true, mode: "rpc" }]) {
+      const listeners = {};
+      const pi = { on: (event, handler) => { listeners[event] = handler; }, registerCommand() {} };
+      registerGrokBuildExtension(pi, { settingsPath: tempSettingsPath() });
+      listeners.session_start({}, {
+        ...ctx,
+        cwd: process.cwd(),
+        ui: { setHiddenThinkingLabel() {}, setTitle() {}, setWorkingMessage() {} },
+      });
+      listeners.session_shutdown({}, {
+        ...ctx,
+        cwd: process.cwd(),
+        ui: { setHiddenThinkingLabel() {}, setTitle() {}, setWorkingMessage() {} },
+      });
+    }
+    assert.deepEqual(writes, []);
+  } finally {
+    process.stdout.write = originalWrite;
+  }
+});
+
 test("/grok theme lists installed themes and marks the active one", () => {
   const h = harness();
   try {

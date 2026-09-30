@@ -392,12 +392,13 @@ export function buildFooterSegments(
   // Third-party extension statuses — individually droppable (priority 5).
   if (extensionStatuses) {
     for (const [key, val] of extensionStatuses.entries()) {
-      if (val && key !== "status") {
+      const sanitized = val.replace(/[\r\n\t]/g, " ").replace(/ +/g, " ").trim();
+      if (sanitized && key !== "status") {
         push({
           id: `extension:${key}`,
           priority: 5,
           required: false,
-          wide: chrome.fg("muted", val),
+          wide: chrome.fg("muted", sanitized),
         });
       }
     }

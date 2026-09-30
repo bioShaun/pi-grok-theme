@@ -6,6 +6,13 @@ import { spawnSync } from "node:child_process";
 
 import { GitStatusProvider, parseGitPorcelain, readGitStatus } from "../git-status.ts";
 
+function testTmpRoot() {
+  if (process.env.TMPDIR) return process.env.TMPDIR;
+  const root = path.resolve(".scratch/test-tmp");
+  fs.mkdirSync(root, { recursive: true });
+  return root;
+}
+
 function deferred() {
   let resolve;
   let reject;
@@ -20,8 +27,7 @@ function git(cwd, ...args) {
 }
 
 function createRepository(t) {
-  const parent = process.env.TMPDIR;
-  assert.ok(parent, "TMPDIR must point to project-local test storage");
+  const parent = testTmpRoot();
   const dir = fs.mkdtempSync(path.join(parent, "git-status-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   git(dir, "init", "-b", "main");
@@ -211,10 +217,11 @@ test("readGitStatus handles counts, subdirectories, detached HEAD, worktrees, an
   git(repo, "worktree", "add", "-b", "worktree-test", worktree);
   const worktreeResult = await readGitStatus(worktree, { counts: false, signal: new AbortController().signal });
   assert.deepEqual(worktreeResult, { state: "ready", branch: "worktree-test" });
-  const outside = fs.mkdtempSync(path.join(process.env.TMPDIR, "not-repo-"));
+  const tmpRoot = testTmpRoot();
+  const outside = fs.mkdtempSync(path.join(tmpRoot, "not-repo-"));
   t.after(() => fs.rmSync(outside, { recursive: true, force: true }));
   const previousCeiling = process.env.GIT_CEILING_DIRECTORIES;
-  process.env.GIT_CEILING_DIRECTORIES = process.env.TMPDIR;
+  process.env.GIT_CEILING_DIRECTORIES = tmpRoot;
   const nonRepository = await readGitStatus(outside, { counts: true, signal: new AbortController().signal });
   if (previousCeiling === undefined) delete process.env.GIT_CEILING_DIRECTORIES;
   else process.env.GIT_CEILING_DIRECTORIES = previousCeiling;
@@ -232,7 +239,7 @@ test("failed reads back off for the cache interval rather than retrying every fr
 });
 
 test("branch-only mode supports an unborn branch", async (t) => {
-  const dir = fs.mkdtempSync(path.join(process.env.TMPDIR, "git-unborn-"));
+  const dir = fs.mkdtempSync(path.join(testTmpRoot(), "git-unborn-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   git(dir, "init", "-b", "new-branch");
   assert.deepEqual(await readGitStatus(dir, { counts: false, signal: new AbortController().signal }), { state: "ready", branch: "new-branch" });

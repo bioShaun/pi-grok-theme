@@ -289,16 +289,16 @@ test("phase clock resets on state transitions; repeated streaming updates do not
   assert.equal(ctrl.getTurnElapsedMs(t0 + 6_100), undefined);
 });
 
-test("filterWorkingMessage uses phase elapsed (aligned with badge), not whole-turn elapsed", () => {
+test("filterWorkingMessage omits duration while badge keeps its live phase duration", () => {
   const ctrl = new WorkingStateController();
   const t0 = 3_000_000;
   ctrl.startTurn(t0);
   ctrl.startTool("bash", t0 + 4_000); // phase resets; turn continues
   const filtered = ctrl.filterWorkingMessage("", t0 + 4_500);
   const badge = ctrl.getBadge(t0 + 4_500);
-  assert.ok(filtered.includes("0.5s"), `filter should show phase 0.5s, got ${filtered}`);
+  assert.equal(filtered, "running bash");
   assert.ok(badge.label.includes("0.5s"), `badge label should show phase 0.5s, got ${badge.label}`);
-  assert.ok(!filtered.includes("4.5s"), "filter must not use whole-turn elapsed");
+  assert.doesNotMatch(filtered, /\d+(?:\.\d+)?s/, "filter must not embed a duration");
 });
 
 // ---------------------------------------------------------------------------

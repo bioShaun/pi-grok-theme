@@ -52,6 +52,10 @@ function activeThemeName(ctx: ExtensionContext): string | undefined {
   }
 }
 
+function isTerminalUi(ctx: ExtensionContext): boolean {
+  return !!ctx.hasUI && ((ctx as ExtensionContext & { mode?: string }).mode ?? "tui") === "tui";
+}
+
 /** Live active Theme instance for chrome styling, or undefined for the shim. */
 function activeTheme(ctx: ExtensionContext): Theme | undefined {
   try {
@@ -83,6 +87,7 @@ export default function registerGrokBuildExtension(
   let headerStyle: HeaderStyle = "compact";
   let motion: MotionMode = "normal";
   let indicatorSupported = false;
+  let cursorTouched = false;
   let agentActive = false;
   let lastTimerLabel = "";
   let lastShellSignature = "";
@@ -231,7 +236,10 @@ export default function registerGrokBuildExtension(
       applyPersistedPrefs();
       // Named-theme cursor policy: bundled darks get Grok amber, the day
       // theme its darker amber, unknown themes keep the terminal default.
-      applyCursorPolicy(activeThemeName(ctx));
+      if (isTerminalUi(ctx)) {
+        applyCursorPolicy(activeThemeName(ctx));
+        cursorTouched = true;
+      }
       // Grok Braille working indicator (feature-detected; no-op on older Pi).
       indicatorSupported = applyWorkingIndicator(ctx, glyphDensity, motion);
       git = new GitStatusProvider({ reader: options.gitReader, onChange: () => {
@@ -259,7 +267,10 @@ export default function registerGrokBuildExtension(
       originalSetWorkingMessage?.(undefined);
       restoreMessage();
       uiCtx = undefined;
-      resetCursorColor(); // OSC 112: restore terminal default cursor color
+      if (cursorTouched) {
+        resetCursorColor(); // OSC 112: restore terminal default cursor color
+        cursorTouched = false;
+      }
       restoreWorkingIndicator(ctx); // restore Pi's default working indicator
       footerHandle?.dispose();
       footerHandle = null;
@@ -557,7 +568,10 @@ export default function registerGrokBuildExtension(
         const result = ctx.ui.setTheme(targetTheme);
         if (result?.success) {
           // Synchronize every theme-dependent chrome piece immediately.
-          applyCursorPolicy(targetTheme);
+          if (isTerminalUi(ctx)) {
+            applyCursorPolicy(targetTheme);
+            cursorTouched = true;
+          }
           indicatorSupported = applyWorkingIndicator(ctx, glyphDensity, motion);
           footerHandle?.requestRender(); // footer/header re-render from the live theme
           notify(`Theme switched to ${chrome.fg("accent", targetTheme)}`, "info");
