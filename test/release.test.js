@@ -56,6 +56,7 @@ test("package installation contents include every runtime and doc artifact", () 
   // Every local .ts module the extension imports must ship.
   const runtimeModules = [
     "index.ts",
+    "integration.ts",
     "chrome-theme.ts",
     "cursor.ts",
     "footer.ts",
@@ -77,7 +78,7 @@ test("package installation contents include every runtime and doc artifact", () 
   for (const artifact of ["themes", "README.md", "README.zh-CN.md", "CHANGELOG.md", "guidelines.md", "LICENSE", "SPEC.md", "docs/previews"]) {
     assert.ok(files.has(artifact), `${artifact} missing from package.files`);
   }
-  assert.equal(pkg.pi.themes.length, 3, "all three themes are registered in the pi manifest");
+  assert.equal(pkg.pi.themes.length, 5, "all five themes are registered in the pi manifest");
   assert.equal(pkg.pi.extensions.length, 1, "extension entrypoint registered");
 
   // Committed preview assets exist on disk.

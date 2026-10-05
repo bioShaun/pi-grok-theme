@@ -177,7 +177,17 @@ chrome 预览以更丰富的场景展示 compact/boxed Header、宽窄 Footer、
 
 ### 与 pi-open-tui 一起使用
 
-当其他扩展接管 Footer/Header 时，Grok 会自动让出界面所有权。主题颜色、琥珀色光标、Braille 工作指示器和终端标题仍会保留，同时停止 Footer 渲染和 Git 计数。此时 `/grok header` 会被禁用。
+默认自动识别已启用的 pi-open-tui，从会话启动时让它负责 Header、Footer、输入框、工作指示器和思考字幕；Grok 负责主题、光标颜色与标题。推荐使用新增的专用主题和日常预设：
+
+```text
+/grok theme open
+/grok open-tui daily
+/reload
+```
+
+浅色用 `/grok theme open-day`；详细指标用 `/grok open-tui diagnostic`。预设保留已有语言、光标、图标及其他个人设置。`/grok integration auto|standalone|companion` 可指定下次重载的界面分工。
+
+专用主题提高 Footer 小字可读性、明确正文颜色，并轻微强调工具错误背景。由于 pi-open-tui 共用文字和边框 token，输入框边框也会更亮。配合模式的动画由 pi-open-tui 控制，`/grok motion quiet` 不会关闭它的动画。完整说明与真实联合预览见 [配合模式指南](docs/open-tui.md)。
 
 Phase 2 提供的 UI 扩展实现完全还原 Grok Build 的紧凑单行状态栏。
 

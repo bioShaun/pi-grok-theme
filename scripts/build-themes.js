@@ -8,6 +8,8 @@ import { overlayBase } from "./theme-src/overlay-base.js";
 import { overlayCoding } from "./theme-src/overlay-coding.js";
 import { overlayDay } from "./theme-src/overlay-day.js";
 
+import { overlayOpen, overlayOpenDay } from "./theme-src/overlay-open.js";
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCHEMA =
   "https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/src/modes/interactive/theme/theme-schema.json";
@@ -57,6 +59,8 @@ function writeTheme(relPath, theme) {
 }
 
 const piThemes = [
+  ["themes/grok-open.json", buildPiTheme(paletteDark, overlayOpen)],
+  ["themes/grok-open-day.json", buildPiTheme(paletteDay, overlayOpenDay)],
   ["themes/grok-build.json", buildPiTheme(paletteDark, overlayBase)],
   ["themes/grok-build-coding.json", buildPiTheme(paletteDark, overlayCoding)],
   ["themes/grok-build-day.json", buildPiTheme(paletteDay, overlayDay)],

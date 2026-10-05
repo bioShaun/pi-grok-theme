@@ -7,8 +7,10 @@ import { FOOTER_PRESETS, SEPARATOR_STYLES, type FooterPreset, type SeparatorStyl
 import { GLYPH_DENSITIES, type GlyphDensity } from "./glyphs.ts";
 import type { MotionMode } from "./status.ts";
 export type { GlyphDensity, SeparatorStyle, MotionMode };
+export type IntegrationMode = "auto" | "standalone" | "companion";
 export type HeaderStyle = "compact" | "boxed";
 export interface GrokThemeSettings {
+  integration?: IntegrationMode;
   footerPreset: FooterPreset;
   showHeader: boolean;
   glyphDensity: GlyphDensity;
@@ -32,6 +34,7 @@ export function loadSettings(settingsPath = defaultSettingsPath()): GrokThemeSet
     const raw = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...DEFAULT_GROK_SETTINGS };
     const loaded: GrokThemeSettings = {
+      ...(["standalone", "companion"].includes(raw.integration) ? { integration: raw.integration as IntegrationMode } : {}),
       footerPreset: member(raw.footerPreset, FOOTER_PRESETS, "default"),
       showHeader: typeof raw.showHeader === "boolean" ? raw.showHeader : false,
       glyphDensity: member(raw.glyphDensity, GLYPH_DENSITIES, "auto"),
@@ -47,6 +50,11 @@ export function loadSettings(settingsPath = defaultSettingsPath()): GrokThemeSet
 }
 export type SaveSettingsResult = { success: true } | { success: false; error: string };
 export function saveSettings(settings: GrokThemeSettings, settingsPath = defaultSettingsPath()): SaveSettingsResult {
+  return saveJsonFile({ ...DEFAULT_GROK_SETTINGS, ...settings }, settingsPath);
+}
+
+/** Atomic JSON replacement, shared by Grok and explicit companion presets. */
+export function saveJsonFile(value: object, settingsPath: string): SaveSettingsResult {
   let temporary: string | undefined;
   let fd: number | undefined;
   try {
@@ -54,7 +62,7 @@ export function saveSettings(settings: GrokThemeSettings, settingsPath = default
     fs.mkdirSync(directory, { recursive: true });
     temporary = path.join(directory, `.${path.basename(settingsPath)}.${randomUUID()}.pending`);
     fd = fs.openSync(temporary, "wx", 0o600);
-    fs.writeFileSync(fd, `${JSON.stringify({ ...DEFAULT_GROK_SETTINGS, ...settings }, null, 2)}\n`, "utf8");
+    fs.writeFileSync(fd, `${JSON.stringify(value, null, 2)}\n`, "utf8");
     fs.fsyncSync(fd);
     fs.closeSync(fd);
     fd = undefined;

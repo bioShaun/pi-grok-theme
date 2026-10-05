@@ -7,7 +7,8 @@
     "test": "node --test \"test/**/*.js\"",
     "typecheck": "tsc --noEmit",
     "previews": "node scripts/render-previews.js",
-    "build:themes": "node scripts/build-themes.js"
+    "build:themes": "node scripts/build-themes.js",
+    "previews:open-tui": "node scripts/render-open-tui-preview.js"
   },
   "main": "./index.ts",
   "exports": {
@@ -48,7 +49,9 @@
     "version.ts",
     "SPEC.md",
     "CHANGELOG.md",
-    "docs/previews"
+    "docs/previews",
+    "integration.ts",
+    "docs/open-tui.md"
   ],
   "pi": {
     "extensions": [
@@ -57,7 +60,9 @@
     "themes": [
       "./themes/grok-build-coding.json",
       "./themes/grok-build.json",
-      "./themes/grok-build-day.json"
+      "./themes/grok-build-day.json",
+      "./themes/grok-open.json",
+      "./themes/grok-open-day.json"
     ]
   },
   "peerDependencies": {

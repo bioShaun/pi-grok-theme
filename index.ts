@@ -30,7 +30,9 @@ import { applyCursorPolicy, resetCursorColor, resolveCursorPolicy } from "./curs
 import { VERSION } from "./version.ts";
 import { applyWorkingIndicator, restoreWorkingIndicator } from "./working-indicator.ts";
 import { resolveGlyphs, resolveGlyphDensity, GLYPH_DENSITIES, type GlyphDensity } from "./glyphs.ts";
-import { loadSettings, saveSettings, type GrokThemeSettings, type HeaderStyle, type MotionMode } from "./settings.ts";
+import { loadSettings, saveSettings, type GrokThemeSettings, type HeaderStyle, type MotionMode, type IntegrationMode } from "./settings.ts";
+
+import { INTEGRATION_MODES, OPEN_TUI_PROFILES, openTuiSettingsPath, usesCompanion, saveOpenTuiProfile, type OpenTuiProfile } from "./integration.ts";
 
 import { GitStatusProvider, type readGitStatus } from "./git-status.ts";
 
@@ -90,6 +92,8 @@ export default function registerGrokBuildExtension(
   let cursorTouched = false;
   let agentActive = false;
   let footerYielded = false;
+  let integration: IntegrationMode = "auto";
+  let companionActive = false;
   let lastChromeTheme: string | undefined | null = null;
   let lastTimerLabel = "";
   let lastShellSignature = "";
@@ -98,6 +102,7 @@ export default function registerGrokBuildExtension(
 
   const persistPrefs = () => {
     const payload: GrokThemeSettings = {
+      ...(integration !== "auto" ? { integration } : {}),
       footerPreset: config.preset,
       showHeader,
       glyphDensity,
@@ -108,6 +113,7 @@ export default function registerGrokBuildExtension(
 
   const applyPersistedPrefs = (): void => {
     const loaded = loadSettings(settingsPath);
+    integration = loaded.integration ?? "auto";
     config.preset = loaded.footerPreset;
     showHeader = loaded.showHeader;
     glyphDensity = loaded.glyphDensity;
@@ -141,7 +147,7 @@ export default function registerGrokBuildExtension(
       applyCursorPolicy(name);
       cursorTouched = true;
     }
-    indicatorSupported = applyWorkingIndicator(ctx, glyphDensity, motion);
+    if (!footerYielded) indicatorSupported = applyWorkingIndicator(ctx, glyphDensity, motion);
   }
   const renderClock = new RenderClock({
     ...options.renderClock,
@@ -180,6 +186,7 @@ export default function registerGrokBuildExtension(
    * Hook into UI context when session starts or changes
    */
   function updateHeader(ctx: ExtensionContext): void {
+    if (footerYielded) return;
     headerHandle?.dispose();
     headerHandle = showHeader ? installHeader(ctx, { style: headerStyle, glyphDensity, showBranch: true, showModel: true, version: VERSION, getGitSnapshot: () => config.gitSnapshot ?? { state: "loading" } }) : undefined;
   }
@@ -188,14 +195,14 @@ export default function registerGrokBuildExtension(
     const branch = config.gitSnapshot?.branch;
     const signature = `${glyphs.brandMark}|${glyphs.disclosureArrow}|${ctx.cwd}|${branch ?? ""}`;
     if (ctx.hasUI && signature !== lastShellSignature) {
-      ctx.ui.setHiddenThinkingLabel?.(`${glyphs.disclosureArrow} thought`);
+      if (!footerYielded) ctx.ui.setHiddenThinkingLabel?.(`${glyphs.disclosureArrow} thought`);
       ctx.ui.setTitle?.(`${glyphs.brandMark} grok | ${path.basename(ctx.cwd)}${branch ? ` | ${branch}` : ""}`);
       lastShellSignature = signature;
     }
   }
   function updatePresentation(ctx: ExtensionContext): void {
     syncConfig();
-    indicatorSupported = applyWorkingIndicator(ctx, glyphDensity, motion);
+    if (!footerYielded) indicatorSupported = applyWorkingIndicator(ctx, glyphDensity, motion);
     updateHeader(ctx);
     updateShell(ctx);
     requestImmediate();
@@ -207,7 +214,7 @@ export default function registerGrokBuildExtension(
     workingMessageOwner = undefined;
   }
   function setupUi(ctx: ExtensionContext): void {
-    if (!ctx.hasUI) return;
+    if (!ctx.hasUI || footerYielded) return;
 
     try {
       // Install Footer
@@ -216,6 +223,9 @@ export default function registerGrokBuildExtension(
         footerYielded = true;
         footerHandle = null;
         renderClock.stop();
+        restoreMessage();
+        // Another extension owns presentation now; never clear its header later.
+        headerHandle = undefined;
         refreshGit();
       } });
 
@@ -252,6 +262,8 @@ export default function registerGrokBuildExtension(
       statusController.endTurn();
       renderClock.stop(); // never inherit a stale clock from a previous session
       applyPersistedPrefs();
+      companionActive = usesCompanion(integration, pi.getCommands?.bind(pi), openTuiSettingsPath(settingsPath));
+      footerYielded = companionActive;
       // Named-theme cursor policy: bundled darks get Grok amber, the day
       // theme its darker amber, unknown themes keep the terminal default.
       syncThemeChrome(ctx, true);
@@ -284,7 +296,7 @@ export default function registerGrokBuildExtension(
         resetCursorColor(); // OSC 112: restore terminal default cursor color
         cursorTouched = false;
       }
-      restoreWorkingIndicator(ctx); // restore Pi's default working indicator
+      if (!footerYielded) restoreWorkingIndicator(ctx); // restore Pi's default working indicator
       footerHandle?.dispose();
       footerHandle = null;
       headerHandle?.dispose();
@@ -395,7 +407,7 @@ export default function registerGrokBuildExtension(
 
   // Register interactive slash command
   pi.registerCommand("grok", {
-    description: "Inspect or configure pi-grok-theme theme and UI extension (/grok [info|status|theme|footer|toggle|header|motion])",
+    description: "Inspect or configure pi-grok-theme theme and UI extension (/grok [info|status|theme|footer|toggle|header|motion|integration|open-tui])",
     // Completion offers theme aliases and installed theme names. It only
     // suggests — switching themes as a preview side effect is unsupported and
     // never happens here (spec §4.6).
@@ -403,6 +415,11 @@ export default function registerGrokBuildExtension(
       const raw = (argumentPrefix ?? "").trim().toLowerCase();
       const parts = raw.split(/\s+/).filter(Boolean);
 
+      if (parts[0] === "integration" || parts[0] === "open-tui") {
+        const values = parts[0] === "integration" ? INTEGRATION_MODES : OPEN_TUI_PROFILES;
+        const items = values.filter(value => value.startsWith(parts[1] ?? "")).map(value => ({ value: `${parts[0]} ${value}`, label: value }));
+        return items.length ? items : null;
+      }
       if (parts[0] === "header" || parts[0] === "motion") {
         const values = parts[0] === "header" ? ["compact", "boxed", "on", "off"] : ["normal", "quiet"];
         const items = values.filter((v) => v.startsWith(parts[1] ?? "")).map((v) => ({ value: `${parts[0]} ${v}`, label: v }));
@@ -442,6 +459,10 @@ export default function registerGrokBuildExtension(
       }
 
       const aliasItems = [
+        { value: "open", label: "open", description: "grok-open (pi-open-tui dark)" },
+        { value: "open-day", label: "open-day", description: "grok-open-day (pi-open-tui light)" },
+        { value: "integration", label: "integration", description: "auto / standalone / companion ownership" },
+        { value: "open-tui", label: "open-tui", description: "daily / diagnostic preset (reload required)" },
         { value: "coding", label: "coding", description: "grok-build-coding (dark, recommended)" },
         { value: "minimal", label: "minimal", description: "grok-build (dark, monochrome)" },
         { value: "day", label: "day", description: "grok-build-day (light)" },
@@ -478,6 +499,24 @@ export default function registerGrokBuildExtension(
         const result = persistPrefs();
         notify(result.success ? message : `${message}. Applied for this session only; preferences could not be saved: ${result.error}`, result.success ? "info" : "warning");
       };
+      if (sub === "integration" || sub.startsWith("integration ")) {
+        const value = sub.slice("integration".length).trim();
+        if (!value) { notify(`Integration: ${integration}; active: ${companionActive ? "companion" : footerYielded ? "yielded" : "standalone"}. Values: ${INTEGRATION_MODES.join(", ")}`); return; }
+        if (!(INTEGRATION_MODES as readonly string[]).includes(value)) { notify("Usage: /grok integration auto|standalone|companion", "warning"); return; }
+        const previous = integration;
+        integration = value as IntegrationMode;
+        const result = persistPrefs();
+        if (!result.success) { integration = previous; notify(`Integration could not be saved: ${result.error}`, "error"); return; }
+        notify(`Integration saved: ${integration}. Run /reload to apply ownership changes.`);
+        return;
+      }
+      if (sub === "open-tui" || sub.startsWith("open-tui ")) {
+        const value = sub.slice("open-tui".length).trim();
+        if (!(OPEN_TUI_PROFILES as readonly string[]).includes(value)) { notify("Usage: /grok open-tui daily|diagnostic (saves density settings; /reload required)", value ? "warning" : "info"); return; }
+        const result = saveOpenTuiProfile(value as OpenTuiProfile, openTuiSettingsPath(settingsPath));
+        notify(result.success ? `pi-open-tui ${value} preset saved. Run /reload to apply; language, icons and cursor settings are preserved.` : `pi-open-tui preset not saved: ${result.error}`, result.success ? "info" : "error");
+        return;
+      }
       if (sub === "status" || sub === "info" || !sub) {
         const badge = statusController.getBadge(Date.now(), motion);
         const iconGlyph = badge.icon === "spinnerFrames" ? undefined : glyphs[badge.icon];
@@ -494,6 +533,7 @@ export default function registerGrokBuildExtension(
           `${chrome.fg("muted", "Package:")} pi-grok-theme`,
           `${chrome.fg("muted", "Theme:")} ${themeName}`,
           `${chrome.fg("muted", "Cursor:")} ${cursorLine}`,
+          `${chrome.fg("muted", "Integration:")} ${integration} (active: ${companionActive ? "companion" : footerYielded ? "yielded" : "standalone"})`,
           `${chrome.fg("muted", "Footer:")} ${config.preset}${footerYielded ? " (yielded to another extension)" : ""}`,
           `${chrome.fg("muted", "Header:")} ${showHeader ? `enabled (${headerStyle})` : `disabled (${headerStyle})`}`,
           `${chrome.fg("muted", "Glyphs:")} ${glyphDensity} (effective ${resolveGlyphDensity(glyphDensity)})`,
@@ -510,6 +550,8 @@ export default function registerGrokBuildExtension(
       if (sub === "theme" || sub.startsWith("theme ") || sub === "themes") {
         const themeArg = input.replace(/^themes?/i, "").trim();
         const aliasToTheme: Record<string, string> = {
+          open: "grok-open",
+          "open-day": "grok-open-day",
           coding: "grok-build-coding",
           "grok-build-coding": "grok-build-coding",
           dark: "grok-build",
@@ -536,7 +578,7 @@ export default function registerGrokBuildExtension(
                 return `${marker}${chrome.fg("text", name)}${suffix}`;
               }),
               ``,
-              `${chrome.fg("dim", "Switch with /grok theme <name|alias> | aliases: coding, minimal, day")}`,
+              `${chrome.fg("dim", "Switch with /grok theme <name|alias> | aliases: coding, minimal, day, open, open-day")}`,
             ];
             notify(lines.join("\n"), "info");
           } else {
@@ -689,6 +731,11 @@ export default function registerGrokBuildExtension(
         const value = sub.slice(6).trim();
         if (!value) { notify(`Motion: ${motion}${!indicatorSupported ? " (host animation cannot be customized)" : ""}`, "info"); return; }
         if (value !== "normal" && value !== "quiet") { notify("Usage: /grok motion normal|quiet", "warning"); return; }
+        if (footerYielded) {
+          motion = value;
+          saved(`Grok motion preference: ${motion}. Active animation and thinking preview belong to pi-open-tui; this does not quiet its animations.`);
+          return;
+        }
         motion = value;
         updatePresentation(ctx);
         saved(`pi-grok-theme motion: ${motion}${motion === "quiet" && !indicatorSupported ? " (host animation cannot be customized)" : ""}`);
@@ -705,7 +752,7 @@ export default function registerGrokBuildExtension(
         return;
       }
 
-      notify(`Unknown subcommand "${sub}". Usage: /grok [info|status|theme|footer|toggle|header|motion]`, "warning");
+      notify(`Unknown subcommand "${sub}". Usage: /grok [info|status|theme|footer|toggle|header|motion|integration|open-tui]`, "warning");
     },
   });
 }

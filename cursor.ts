@@ -25,6 +25,8 @@ const GROK_CURSOR_COLOR = "E0/AF/68"; // #E0AF68
  * default is restored instead.
  */
 export const CURSOR_COLORS_BY_THEME: Readonly<Record<string, string>> = {
+  "grok-open": "#E0AF68",
+  "grok-open-day": "#B45309",
   "grok-build-coding": "#E0AF68",
   "grok-build": "#E0AF68",
   "grok-build-day": "#B45309",

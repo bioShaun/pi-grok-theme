@@ -12,3 +12,8 @@ yarn-error.log*
 .agents/
 .claude/
 skills-lock.json
+
+# Session-local implementation evidence
+.codex-task-state/
+.scratch/grok-open-tui/
+.scratch/implementation/

@@ -181,7 +181,17 @@ They verify static rendering; animation and physical font rendering require term
 
 ### Using with pi-open-tui
 
-When another extension owns the footer/header, Grok yields automatically. Theme colors, the amber cursor, Braille working indicator, and terminal title remain active, while footer rendering and Git counts stop. `/grok header` is disabled while the other extension owns the footer.
+Grok automatically detects an enabled pi-open-tui at session startup. Open-tui owns the header, footer, editor, working indicator and thinking peek; Grok supplies theme colors, cursor color and the terminal title. Recommended setup:
+
+```text
+/grok theme open
+/grok open-tui daily
+/reload
+```
+
+Use `open-day` for the light companion theme or `/grok open-tui diagnostic` for detailed metrics. Presets merge only density controls and preserve language, icons, cursor and other settings. `/grok integration auto|standalone|companion` selects ownership for the next reload.
+
+The companion themes improve small footer labels, set explicit body text colors and tint tool errors. Because open-tui shares thinking tokens between text and editor rails, rails also become brighter. Grok quiet mode does not control open-tui animation. See [the integration guide and real renderer previews](docs/open-tui.md).
 
 The Phase 2 presentation extension provides a single-line, responsive statusline inspired by Grok Build.
 

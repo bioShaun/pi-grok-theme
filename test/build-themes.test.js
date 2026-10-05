@@ -9,6 +9,8 @@ const THEME_FILES = [
   "themes/grok-build.json",
   "themes/grok-build-coding.json",
   "themes/grok-build-day.json",
+  "themes/grok-open.json",
+  "themes/grok-open-day.json",
 ];
 
 test("build:themes script exists and regenerates Pi themes without raw hex in colors", () => {
@@ -29,7 +31,7 @@ test("build:themes script exists and regenerates Pi themes without raw hex in co
         assert.ok(value in theme.vars, `${rel} colors.${key}=${value} missing from vars`);
       }
     }
-    assert.equal(theme.colors.text, "");
+    assert.equal(theme.colors.text, rel.includes("grok-open") ? "fg" : "");
     assert.ok(!("pythonMode" in theme.colors));
     assert.ok(!Object.keys(theme.colors).some((k) => k.startsWith("statusLine")));
   }

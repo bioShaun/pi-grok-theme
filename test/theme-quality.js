@@ -17,7 +17,7 @@ import path from "node:path";
 
 const THEMES_DIR = path.resolve("themes");
 const SCHEMA_PATH = path.resolve("test/fixtures/theme-schema.json");
-const THEME_FILES = ["grok-build-coding.json", "grok-build.json", "grok-build-day.json"];
+const THEME_FILES = ["grok-build-coding.json", "grok-build.json", "grok-build-day.json", "grok-open.json", "grok-open-day.json"];
 
 const schema = JSON.parse(fs.readFileSync(SCHEMA_PATH, "utf8"));
 
@@ -276,5 +276,17 @@ test("day readable secondary text and pressure labels meet the new surface gates
   }
   for (const token of ["accent", "warning", "error", "success"]) {
     assert.ok(contrastRatio(resolveColorValue(theme, theme.colors[token]), theme.vars.terminalBg) >= 4.5, token);
+  }
+});
+
+
+test("companion footer text meets 4.5:1 on terminal and editor surfaces", () => {
+  for (const file of ["grok-open.json", "grok-open-day.json"]) {
+    const theme = loadTheme(file);
+    for (const token of ["text", "thinkingMinimal", "thinkingLow", "thinkingMedium", "thinkingHigh", "thinkingXhigh", "thinkingMax"]) {
+      for (const surface of ["terminalBg", "surface1", "surface2"]) {
+        assert.ok(contrastRatio(resolveColorValue(theme, theme.colors[token]), theme.vars[surface]) >= 4.5, `${file}: ${token} on ${surface}`);
+      }
+    }
   }
 });

@@ -1,0 +1,30 @@
+{
+  "piVersion": "0.84.2",
+  "package": "pi-open-tui",
+  "version": "0.3.10",
+  "sourceSha256": "5256d8a8c4eeea567cdc98b50ccf895b293a26478cdb0b038c0b315a0d984350",
+  "files": [
+    "config.ts",
+    "editor.ts",
+    "footer.ts",
+    "fullscreen-scroll.ts",
+    "git.ts",
+    "header.ts",
+    "icons.ts",
+    "index.ts",
+    "peek.ts",
+    "runtime.ts",
+    "session-lifecycle.ts",
+    "settings-command.ts",
+    "state.ts",
+    "telemetry.ts",
+    "utils.ts"
+  ],
+  "widths": [
+    80,
+    100,
+    160
+  ],
+  "iconMode": "ascii",
+  "note": "Unmodified upstream renderers; fixture data. Terminal canvas must match the theme. SVG cannot validate terminal animation or font fallback."
+}

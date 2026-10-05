@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add automatic pi-open-tui companion ownership, with explicit integration modes applied on reload.
+- Add `grok-open` / `grok-open-day` themes with readable effort labels, explicit body text and tinted tool errors.
+- Add daily/diagnostic open-tui density presets with atomic, preserving configuration merges.
+- Add optional real open-tui renderer previews and integration checks.
+
 Reliability and visual-polish work for Pi chrome. No version bump is assigned yet.
 
 - Cooperate with footer-owning extensions such as pi-open-tui: yield rendering and Git counts, retain theme chrome, and prevent `/grok header` from replacing the other extension's header. Theme chrome now synchronizes when Pi's active theme changes.
